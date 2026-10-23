@@ -302,3 +302,36 @@
 .topbar{background:#070c16db;backdrop-filter:blur(14px)}
 @media(max-width:850px){.prompt-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome-wrap{width:calc(100% - 28px);padding:22px 18px}}
 @media(max-width:550px){.prompt-grid{grid-template-columns:1fr 1fr;gap:8px}.prompt-card{min-height:100px;padding:11px 9px}.welcome-wrap{width:calc(100% - 16px);padding:18px 12px}.welcome-heading h1{font-size:29px}.welcome-heading p{font-size:12px}.composer-area{width:calc(100% - 16px)}}
+
+/* Celestial Dawn: brighter typography inside the dark glass panels for contrast. */
+.app-shell.theme-dawn .welcome-wrap,
+.app-shell.theme-dawn .prompt-card,
+.app-shell.theme-dawn .composer,
+.app-shell.theme-dawn .composer-model-row .model-select,
+.app-shell.theme-dawn .message-body,
+.app-shell.theme-dawn .usage-card,
+.app-shell.theme-dawn .settings-panel,
+.app-shell.theme-dawn .model-card,
+.app-shell.theme-dawn .recent-models,
+.app-shell.theme-dawn .quick-actions{color:#fff8eb}
+.app-shell.theme-dawn .welcome-heading h1{color:#fff3d9}
+.app-shell.theme-dawn .welcome-heading p,
+.app-shell.theme-dawn .prompt-card small,
+.app-shell.theme-dawn .composer-hints,
+.app-shell.theme-dawn .composer-disclaimer,
+.app-shell.theme-dawn .settings-copy,
+.app-shell.theme-dawn .usage-status,
+.app-shell.theme-dawn .message-body p,
+.app-shell.theme-dawn .message-body li{color:#f0eee9}
+.app-shell.theme-dawn .prompt-card b,
+.app-shell.theme-dawn .field-label,
+.app-shell.theme-dawn .settings-section h3{color:#fff5df}
+.app-shell.theme-dawn .composer textarea,
+.app-shell.theme-dawn .token-input input,
+.app-shell.theme-dawn .system-textarea{color:#fffaf1}
+.app-shell.theme-dawn .composer textarea::placeholder,
+.app-shell.theme-dawn .token-input input::placeholder{color:#c6cbd5}
+.app-shell.theme-dawn .settings-copy a{color:#8fdcff;text-decoration:underline;text-underline-offset:3px}
+.app-shell.theme-dawn .prompt-card{background:linear-gradient(145deg,#101b2bf2,#09111ef0);border-color:#d8bd8b9c}
+.app-shell.theme-dawn .composer{background:#08111ef5}
+.app-shell.theme-dawn .message-body{background:#091321f2}
