@@ -14,7 +14,7 @@ function fmtDate(t:number) { const d=new Date(t); return d.toLocaleDateString(un
 function App() {
   const [profile,setProfile]=useState<AuthProfile|null>(readAuth);
   const [tokenDraft,setTokenDraft]=useState(''); const [showToken,setShowToken]=useState(false);
-  const [models,setModels]=useState<Model[]>([]); const [model,setModel]=useState(FALLBACK); const [compareModel,setCompareModel]=useState('anthropic/claude-3.5-sonnet');
+  const [models,setModels]=useState<Model[]>([]); const [model,setModel]=useState(FALLBACK); const [compareModel,setCompareModel]=useState(FALLBACK);
   const [modelSearch,setModelSearch]=useState(''); const [showModels,setShowModels]=useState(false);
   const [conversations,setConversations]=useState(readConversations); const [activeId,setActiveId]=useState(()=>readConversations()[0]?.id||''); const [tokenInvalid,setTokenInvalid]=useState(false);
   const [draft,setDraft]=useState(''); const [loading,setLoading]=useState(false); const [error,setError]=useState(''); const [notice,setNotice]=useState('');
