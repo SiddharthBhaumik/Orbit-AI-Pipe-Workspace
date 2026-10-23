@@ -1,0 +1,55 @@
+name: Check OpenAI model availability
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: model-health
+  cancel-in-progress: false
+
+jobs:
+  probe-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Probe every eligible OpenAI chat model
+        env:
+          AI_PIPE_TOKEN: ${{ secrets.AI_PIPE_TOKEN }}
+        run: node scripts/check-models.mjs
+
+      - name: Commit updated health catalogue
+        id: publish
+        run: |
+          if git diff --quiet -- public/model-health.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Model health catalogue has no changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/model-health.json
+          git commit -m "Update OpenAI model health catalogue"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with GITHUB_TOKEN does not trigger push workflows, so explicitly
+      # dispatch the existing Pages deployment when the generated file changes.
+      - name: Deploy updated catalogue to GitHub Pages
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy.yml --ref main
