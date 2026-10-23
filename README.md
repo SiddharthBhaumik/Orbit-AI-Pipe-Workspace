@@ -1,19 +1,51 @@
-# Orbit — AI Pipe Workspace
+# Orbit — AI Workspace
 
-A polished, responsive OpenAI-model chat workspace built with React, TypeScript, and Vite. Connect through AI Pipe sign-in or paste an AI Pipe token, discover supported chat models live, and compare model responses in one conversation.
+Orbit is a browser-based AI chat workspace for exploring ideas, writing and debugging code, analyzing data, and comparing responses from supported language models.
 
-## Features
+**Live website:** https://siddharthbhaumik.github.io/Orbit-AI-Pipe-Workspace/
 
-- **AI Pipe sign-in** using the official `getProfile()` helper and redirect flow, plus manual token entry.
-- **OpenAI-only model catalogue** loaded from AI Pipe's OpenAI-compatible endpoint, filtered to chat-capable text models.
-- **OpenAI chat completions** with Markdown, GitHub-flavoured Markdown, code blocks, tables, and copy response.
-- **Compare mode** to run the same prompt through two models.
-- **Conversation history** stored in browser local storage.
-- **System instructions** and response-style preferences.
-- **Responsive dark workspace** for desktop and mobile.
-- **GitHub Pages deployment** via GitHub Actions.
+## Get started
 
-## Run locally
+1. Open the [Orbit website](https://siddharthbhaumik.github.io/Orbit-AI-Pipe-Workspace/).
+2. Open **Preferences** (the settings control) and find **Connect AI Pipe**.
+3. Visit the full URL https://aipipe.org/login
+4. Sign in to AI Pipe and create an API token in your AI Pipe account.
+5. Copy the token, return to Orbit, paste it into the **AI Pipe token** field, and choose **Connect token**.
+6. Open a conversation, choose an available model, and start chatting. Use **Compare** to send the same prompt to a second model when that option is available.
+
+Orbit uses the token you provide to make requests to AI Pipe. It does not require a separate Orbit account. Model availability depends on the AI Pipe account and current provider access.
+
+## What you can do
+
+- Chat with supported text models through AI Pipe's OpenAI-compatible API.
+- Compare responses from two models.
+- Review and copy formatted responses, including code, tables, and Markdown.
+- Keep conversation history in the current browser.
+- Adjust system instructions and response preferences.
+- Choose between three visual themes: **Astral Indigo**, **Gothic Observatory**, and **Infernal Eclipse**.
+- Use the responsive interface on desktop or mobile.
+
+## Privacy and token safety
+
+- Orbit stores the AI Pipe token and conversation history in this browser's local storage so they can persist between visits.
+- Your token is sent to AI Pipe to authenticate model requests. Orbit's static website does not operate its own chat backend.
+- Use a personal device where possible. On a shared device, disconnect from Orbit and clear browser data when finished.
+- Never share your token, commit it to a repository, or include it in screenshots, support requests, or public issues. If a token is exposed, revoke or rotate it through AI Pipe.
+- Responses and model availability depend on AI Pipe and the selected model's current capabilities, limits, and access rules.
+
+## Troubleshooting
+
+**The token is rejected:** Check that it was copied completely and is still active. Create a new token at https://aipipe.org/login if necessary, then replace the saved token in Orbit's Preferences.
+
+**A model is missing or fails:** Refresh the model catalogue and try another available model. The catalogue and automated availability checks can change as provider access and model support change.
+
+**The site looks out of date:** Hard-refresh the page (Ctrl + Shift + R on Windows/Linux) after a deployment.
+
+## For contributors
+
+Orbit is built with React, TypeScript, Vite, CSS, and lucide-react. It is deployed to GitHub Pages using GitHub Actions.
+
+### Run locally
 
 Requirements: Node.js 20 or newer and npm.
 
@@ -22,9 +54,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL Vite prints. In the app, open **Settings → Continue with AI Pipe**, or paste a token you already have from [AI Pipe](https://aipipe.org/).
-
-Useful checks:
+Use the local URL printed by Vite. Useful checks:
 
 ```bash
 npm run typecheck
@@ -32,54 +62,22 @@ npm run build
 npm run preview
 ```
 
-## AI Pipe endpoints
+### API integration
 
-Orbit uses only the OpenAI-compatible base URL `https://aipipe.org/openai/v1`.
+Orbit uses the AI Pipe OpenAI-compatible base URL `https://aipipe.org/openai/v1`:
+- `GET /models` loads the available model catalogue.
+- `POST /chat/completions` sends chat requests.
 
-- `GET /models` — fetches the OpenAI model catalogue; Orbit filters out non-chat model families and any model with a non-null announced shutdown date, including models scheduled for future retirement.
-- `POST /chat/completions` — sends non-streaming OpenAI chat-completion requests. Model IDs are sent exactly as returned by the OpenAI catalogue; there is no OpenRouter fallback.
-- Sign-in redirect: `https://aipipe.org/login?redirect=<current-url>`
+Orbit does not use OpenRouter. Authentication is by manually supplied AI Pipe token; there is no redirect-based sign-in flow.
 
-The app uses the token only in browser requests to AI Pipe. It does not use a custom backend or send credentials to an Orbit server. If a request returns an authentication error, Orbit flags the token as rejected/possibly expired and asks you to reconnect; token changes made elsewhere are detected on the next API request, not by a background watcher.
+### Deployment
 
-## Token handling and security
+The `.github/workflows/deploy.yml` workflow builds and deploys the site to GitHub Pages. The Vite base path is configured for this repository's Pages URL.
 
-- Tokens are stored in this browser's **localStorage** so sign-in can survive browser restarts. Disconnecting removes Orbit's saved token.
-- AI Pipe's sign-in callback token is consumed on page load and removed from the visible URL with `history.replaceState`. The official helper is also asked to restore the AI Pipe profile on later visits.
-- Chat history and authentication are stored in local storage. Do not use this on a shared computer if your conversations or token are sensitive.
-- Never commit a real API token, put one in a public environment variable, or paste one into an issue or screenshot.
-- Browser-side apps cannot make a secret embedded in client code truly private. For personal use, use a token you can rotate and understand the provider's usage limits.
+### Model availability workflow
 
-## Deploy to GitHub Pages
-
-This repository includes `.github/workflows/deploy.yml`.
-
-1. Push the project to the `main` branch.
-2. Open **Settings → Pages** in GitHub.
-3. Set the build and deployment source to **GitHub Actions**.
-4. Open the **Actions** tab and wait for the Pages workflow to complete.
-5. Your site will be published at `https://SiddharthBhaumik.github.io/Orbit-AI-Pipe-Workspace/`.
-
-The Vite base path is configured for the repository's GitHub Pages URL during Actions builds.
-
-## Stack
-
-React · TypeScript · Vite · CSS · lucide-react · react-markdown · remark-gfm · AI Pipe
+Maintainers can optionally run **Actions → Check OpenAI model availability**. It probes eligible models using an Actions secret named `AI_PIPE_TOKEN` and updates `public/model-health.json`. Probes use the configured AI Pipe account and may consume usage. This maintenance workflow is separate from a visitor connecting their token in Orbit.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-
-## OpenAI model health checks
-
-The `.github/workflows/model-health.yml` workflow can be run manually from **Actions → Check OpenAI model availability → Run workflow** and runs weekly on a schedule. It calls the AI Pipe OpenAI-compatible `/models` endpoint, sends a small chat-completion probe to each eligible non-retired chat model, and writes the sanitized per-model results to `public/model-health.json`. Orbit reads that report and shows models whose probe returned text.
-
-Before running it, add an Actions repository secret named `AI_PIPE_TOKEN` containing your AI Pipe token:
-
-1. Open **Settings → Secrets and variables → Actions** in the repository.
-2. Choose **New repository secret**.
-3. Set the name to `AI_PIPE_TOKEN` and paste the token as its value.
-4. Open **Actions → Check OpenAI model availability → Run workflow** to run the first test.
-
-The token is only passed to the workflow as an environment secret; it is never written into the generated catalogue. The probe uses your token/account, so results reflect access through that account and may consume a small amount of usage for each model. A successful probe confirms a short text response worked at test time; it does not guarantee long-context, tool, image, or other capabilities. The workflow records non-working outcomes and updates the published model-health file, then dispatches the Pages deployment when that file changes.
