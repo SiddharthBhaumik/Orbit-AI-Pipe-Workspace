@@ -36,7 +36,7 @@ npm run preview
 
 Orbit uses only the OpenAI-compatible base URL `https://aipipe.org/openai/v1`.
 
-- `GET /models` — fetches the OpenAI model catalogue; Orbit filters out image, audio, embedding, moderation, search, and other non-chat model IDs for this chat-focused phase.
+- `GET /models` — fetches the OpenAI model catalogue; Orbit filters out non-chat model families and any model with a non-null announced shutdown date, including models scheduled for future retirement.
 - `POST /chat/completions` — sends non-streaming OpenAI chat-completion requests. Model IDs are sent exactly as returned by the OpenAI catalogue; there is no OpenRouter fallback.
 - Sign-in redirect: `https://aipipe.org/login?redirect=<current-url>`
 
