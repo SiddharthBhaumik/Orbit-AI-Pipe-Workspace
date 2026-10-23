@@ -10,7 +10,17 @@ export function cleanAuthRedirect() {
   return { token, email };
 }
 export function startAIPipeSignIn() {
-  window.location.assign('https://aipipe.org/login?redirect=' + encodeURIComponent(window.location.href));
+  // Keep the exact current GitHub Pages URL as the return target.
+  const login = new URL('https://aipipe.org/login');
+  login.searchParams.set('redirect', window.location.href);
+  window.location.assign(login.toString());
+}
+
+export async function getAIPipeProfile(): Promise<{ token: string | null; email?: string | null }> {
+  // AI Pipe's official helper consumes the callback and retains the profile for later visits.
+  const sdkUrl = 'https://aipipe.org/aipipe.js';
+  const sdk = await import(/* @vite-ignore */ sdkUrl) as { getProfile: () => { token: string | null; email?: string | null } };
+  return sdk.getProfile();
 }
 async function errorMessage(r: Response) {
   let detail = ''; try { const j = await r.json(); detail = typeof j.error === 'string' ? j.error : j.error?.message || j.message || ''; } catch {}
