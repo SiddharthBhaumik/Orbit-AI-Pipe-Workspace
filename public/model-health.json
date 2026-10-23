@@ -1,7 +1,188 @@
 {
-  "generatedAt": null,
+  "generatedAt": "2026-10-23T11:08:01.104Z",
   "endpoint": "https://aipipe.org/openai/v1",
-  "tested": 0,
-  "working": 0,
-  "models": []
+  "tested": 30,
+  "working": 13,
+  "models": [
+    {
+      "id": "gpt-3.5-turbo-16k",
+      "name": "gpt-3.5-turbo-16k",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5",
+      "name": "gpt-5",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5-mini",
+      "name": "gpt-5-mini",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5-nano",
+      "name": "gpt-5-nano",
+      "status": "empty_response",
+      "reason": "Request succeeded but returned no text"
+    },
+    {
+      "id": "gpt-5-pro",
+      "name": "gpt-5-pro",
+      "status": "not_found_or_unsupported",
+      "reason": "This model is only supported in v1/responses and not in v1/chat/completions."
+    },
+    {
+      "id": "gpt-5.1-2025-11-13",
+      "name": "gpt-5.1-2025-11-13",
+      "status": "request_error",
+      "reason": "Model gpt-5.1-2025-11-13 pricing unknown"
+    },
+    {
+      "id": "gpt-5.2",
+      "name": "gpt-5.2",
+      "status": "request_error",
+      "reason": "Model gpt-5.2 pricing unknown"
+    },
+    {
+      "id": "gpt-5.2-2025-12-11",
+      "name": "gpt-5.2-2025-12-11",
+      "status": "request_error",
+      "reason": "Model gpt-5.2-2025-12-11 pricing unknown"
+    },
+    {
+      "id": "gpt-5.2-pro",
+      "name": "gpt-5.2-pro",
+      "status": "request_error",
+      "reason": "Model gpt-5.2-pro pricing unknown"
+    },
+    {
+      "id": "gpt-5.2-pro-2025-12-11",
+      "name": "gpt-5.2-pro-2025-12-11",
+      "status": "request_error",
+      "reason": "Model gpt-5.2-pro-2025-12-11 pricing unknown"
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "gpt-5.4",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.4-2026-03-05",
+      "name": "gpt-5.4-2026-03-05",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "name": "gpt-5.4-mini",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.4-mini-2026-03-17",
+      "name": "gpt-5.4-mini-2026-03-17",
+      "status": "request_error",
+      "reason": "Model gpt-5.4-mini-2026-03-17 pricing unknown"
+    },
+    {
+      "id": "gpt-5.4-nano-2026-03-17",
+      "name": "gpt-5.4-nano-2026-03-17",
+      "status": "request_error",
+      "reason": "Model gpt-5.4-nano-2026-03-17 pricing unknown"
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "name": "gpt-5.4-pro",
+      "status": "not_found_or_unsupported",
+      "reason": "This is not a chat model and thus not supported in the v1/chat/completions endpoint. Did you mean to use v1/completions?"
+    },
+    {
+      "id": "gpt-5.4-pro-2026-03-05",
+      "name": "gpt-5.4-pro-2026-03-05",
+      "status": "request_error",
+      "reason": "Model gpt-5.4-pro-2026-03-05 pricing unknown"
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "gpt-5.5",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.5-2026-04-23",
+      "name": "gpt-5.5-2026-04-23",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.5-pro",
+      "name": "gpt-5.5-pro",
+      "status": "not_found_or_unsupported",
+      "reason": "This is not a chat model and thus not supported in the v1/chat/completions endpoint. Did you mean to use v1/completions?"
+    },
+    {
+      "id": "gpt-5.5-pro-2026-04-23",
+      "name": "gpt-5.5-pro-2026-04-23",
+      "status": "not_found_or_unsupported",
+      "reason": "This is not a chat model and thus not supported in the v1/chat/completions endpoint. Did you mean to use v1/completions?"
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "name": "gpt-5.6-luna",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "name": "gpt-5.6-sol",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "name": "gpt-5.6-terra",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "gpt-6-astra",
+      "status": "request_error",
+      "reason": "Model gpt-6-astra pricing unknown"
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "gpt-6-luna",
+      "status": "working",
+      "reason": null
+    },
+    {
+      "id": "gpt-6-sol",
+      "name": "gpt-6-sol",
+      "status": "request_error",
+      "reason": "Model gpt-6-sol pricing unknown"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "gpt-6.1-sol",
+      "status": "request_error",
+      "reason": "Model gpt-6.1-sol pricing unknown"
+    },
+    {
+      "id": "gpt-live-1",
+      "name": "gpt-live-1",
+      "status": "request_error",
+      "reason": "Model gpt-live-1 pricing unknown"
+    },
+    {
+      "id": "o3",
+      "name": "o3",
+      "status": "working",
+      "reason": null
+    }
+  ]
 }
