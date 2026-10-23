@@ -276,3 +276,29 @@
 .theme-astral .brand-wordmark span{color:#c7b5ff}.theme-gothic .brand-wordmark span{color:#d2bd91}.theme-infernal .brand-wordmark span{color:#ffad89}
 @media(max-width:900px){.welcome-wrap{width:calc(100% - 28px);padding:22px 18px}.composer-area{width:calc(100% - 28px)}.topbar{padding:0 16px}}
 @media(max-width:650px){.brand-wordmark small{display:none}.brand-wordmark{gap:0}.welcome-wrap{border-radius:18px;padding:18px 14px}.welcome-wrap:after{width:210px;right:-70px;top:-40px}.welcome-wrap h1{font-size:clamp(34px,9vw,48px)}.prompt-grid{grid-template-columns:1fr}.prompt-card{min-height:95px}.composer-area{width:calc(100% - 18px)}.message-row.user-row .message-body{max-width:88%}.topbar{height:55px}.connection-pill{display:none}}
+
+/* Image-led Orbit home: keep the actual artwork visible behind the useful chat UI. */
+.main-panel{position:relative;isolation:isolate;background-color:var(--bg)}
+.main-panel:before{content:"";position:absolute;inset:55px 0 0;z-index:-1;pointer-events:none;background-image:linear-gradient(90deg,#050913b8 0%,#07101cb0 28%,#07101c88 62%,#050913c2 100%),url('/Orbit-AI-Pipe-Workspace/orbit-gothic.jpg');background-size:cover;background-position:center 43%;opacity:.98}
+.app-shell.theme-dawn .main-panel:before{background-image:linear-gradient(90deg,#f7f1e5b8,#f7f1e58a 48%,#f7f1e5ba),url('/Orbit-AI-Pipe-Workspace/orbit-dawn.jpg')}
+.app-shell.theme-astral .main-panel:before{background-image:linear-gradient(90deg,#050817ad,#090d1fa0 48%,#050817bf),url('/Orbit-AI-Pipe-Workspace/orbit-astral.jpg')}
+.app-shell.theme-gothic .main-panel:before{background-image:linear-gradient(90deg,#050913b8,#07101c88 48%,#050913c2),url('/Orbit-AI-Pipe-Workspace/orbit-gothic.jpg')}
+.app-shell.theme-infernal .main-panel:before{background-image:linear-gradient(90deg,#100507b8,#18070aaa 48%,#100507c7),url('/Orbit-AI-Pipe-Workspace/orbit-infernal.jpg')}
+.welcome-wrap{width:min(760px,calc(100% - 42px));margin:auto;padding:27px 28px 24px;border-radius:20px;background:linear-gradient(145deg,#08111de8,#0a1320d9);border:1px solid #d0ad705c;box-shadow:0 25px 90px #0007, inset 0 1px #fff1;backdrop-filter:blur(12px)}
+.welcome-wrap:before,.welcome-wrap:after{display:none}
+.welcome-heading h1{font-size:clamp(28px,3.2vw,42px);line-height:1.12;letter-spacing:-1.1px;color:#f4e4c9;margin:0 0 8px}
+.welcome-heading p{margin:0 0 20px;color:#d2d5df;font-size:13px;line-height:1.65}
+.welcome-kicker,.welcome-foot{display:none}
+.prompt-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 19px}
+.prompt-card{min-width:0;min-height:115px;padding:14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:9px;text-align:left;border:1px solid #c9a76b55;border-radius:12px;background:linear-gradient(145deg,#101b2bd9,#09111edb);color:#f0e7d9}
+.prompt-card b{font-size:12px;line-height:1.4}.prompt-card small{font-size:10px;line-height:1.4;color:#b6bfce}.prompt-card .prompt-arrow{margin-left:auto;margin-top:auto;color:#d6b77e}
+.prompt-icon{width:31px;height:31px;flex:0 0 31px;border-radius:9px;background:#d5b77c17;color:#e5c78d;border-color:#d5b77c55}
+.composer-area{width:min(900px,calc(100% - 44px));padding:9px 0 18px}
+.composer{background:#08111eeF;border-color:#c9a76b78;backdrop-filter:blur(15px)}
+.composer-model-row .model-select{background:#091321eF}
+.conversation-scroll{background:transparent}
+.message-body{background:#091321eF;backdrop-filter:blur(14px)}
+.message-row.user-row .message-body{background:#173a46ed}
+.topbar{background:#070c16db;backdrop-filter:blur(14px)}
+@media(max-width:850px){.prompt-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome-wrap{width:calc(100% - 28px);padding:22px 18px}}
+@media(max-width:550px){.prompt-grid{grid-template-columns:1fr 1fr;gap:8px}.prompt-card{min-height:100px;padding:11px 9px}.welcome-wrap{width:calc(100% - 16px);padding:18px 12px}.welcome-heading h1{font-size:29px}.welcome-heading p{font-size:12px}.composer-area{width:calc(100% - 16px)}}
