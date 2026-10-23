@@ -14,15 +14,19 @@ async function bootstrap() {
       sessionStorage.removeItem(KEY);
     } catch {}
   } else {
-    // Ask AI Pipe's official helper to restore its sign-in profile. Preserve a
-    // manually entered token if the user has not connected through AI Pipe.
-    try {
-      const profile = await getAIPipeProfile();
-      if (profile.token) {
-        localStorage.setItem(KEY, JSON.stringify({ token: profile.token, email: profile.email || undefined, method: 'aipipe' }));
+    // Respect an explicitly chosen manual token. Otherwise let AI Pipe's
+    // official helper restore/refresh its own sign-in profile on later visits.
+    let savedMethod = '';
+    try { savedMethod = JSON.parse(localStorage.getItem(KEY) || '{}').method || ''; } catch {}
+    if (savedMethod !== 'manual') {
+      try {
+        const profile = await getAIPipeProfile();
+        if (profile.token) {
+          localStorage.setItem(KEY, JSON.stringify({ token: profile.token, email: profile.email || undefined, method: 'aipipe' }));
+        }
+      } catch {
+        // Manual token mode remains available if the helper is unavailable.
       }
-    } catch {
-      // Manual token mode remains available if the helper is unavailable.
     }
   }
   createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
