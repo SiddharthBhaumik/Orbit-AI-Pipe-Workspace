@@ -1,12 +1,12 @@
 # Orbit — AI Pipe Workspace
 
-A polished, responsive multi-model chat workspace built with React, TypeScript, and Vite. Connect through AI Pipe sign-in or paste an AI Pipe token, discover available models live, and compare model responses in one conversation.
+A polished, responsive OpenAI-model chat workspace built with React, TypeScript, and Vite. Connect through AI Pipe sign-in or paste an AI Pipe token, discover supported chat models live, and compare model responses in one conversation.
 
 ## Features
 
 - **AI Pipe sign-in** using the official `getProfile()` helper and redirect flow, plus manual token entry.
-- **Live model catalogue** loaded from the OpenRouter-compatible AI Pipe endpoint.
-- **Streaming chat** with Markdown, GitHub-flavoured Markdown, code blocks, tables, and copy response.
+- **OpenAI-only model catalogue** loaded from AI Pipe's OpenAI-compatible endpoint, filtered to chat-capable text models.
+- **OpenAI chat completions** with Markdown, GitHub-flavoured Markdown, code blocks, tables, and copy response.
 - **Compare mode** to run the same prompt through two models.
 - **Conversation history** stored in browser local storage.
 - **System instructions** and response-style preferences.
