@@ -34,7 +34,6 @@ export async function fetchModels(token: string): Promise<Model[]> {
   // AI Pipe's OpenAI model list exposes shutdown_date. Exclude models with
   // any announced shutdown, not just ones already shut down, so deprecated
   // and soon-to-be-retired IDs never enter Orbit's chat picker.
-  const today = new Date().toISOString().slice(0, 10);
   const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use|instruct|codex|deep-research|cyber)/i;
   return (j.data || [])
     .filter(m =>
@@ -42,7 +41,7 @@ export async function fetchModels(token: string): Promise<Model[]> {
       /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) &&
       !nonChat.test(m.id) &&
       // A future shutdown date means the model has been scheduled for retirement.
-      (!m.shutdown_date || m.shutdown_date < today)
+      !m.shutdown_date
     )
     .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 }
