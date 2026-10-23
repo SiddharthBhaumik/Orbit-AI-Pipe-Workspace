@@ -20,12 +20,14 @@ async function bootstrap() {
     try { savedMethod = JSON.parse(localStorage.getItem(KEY) || '{}').method || ''; } catch {}
     if (savedMethod !== 'manual') {
       try {
+        // First let the official helper restore its profile if available.
         const profile = await getAIPipeProfile();
         if (profile.token) {
           localStorage.setItem(KEY, JSON.stringify({ token: profile.token, email: profile.email || undefined, method: 'aipipe' }));
         }
       } catch {
-        // Manual token mode remains available if the helper is unavailable.
+        // The SDK may be blocked by browser/module CORS policies. The explicit
+        // redirect callback remains the reliable fallback when login succeeds.
       }
     }
   }
