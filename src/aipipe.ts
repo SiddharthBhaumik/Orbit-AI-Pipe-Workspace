@@ -35,15 +35,36 @@ export async function fetchModels(token: string): Promise<Model[]> {
   // any announced shutdown, not just ones already shut down, so deprecated
   // and soon-to-be-retired IDs never enter Orbit's chat picker.
   const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use|instruct|codex|deep-research|cyber)/i;
-  return (j.data || [])
+  const candidates = (j.data || [])
     .filter(m =>
       typeof m?.id === 'string' &&
       /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) &&
       !nonChat.test(m.id) &&
-      // A future shutdown date means the model has been scheduled for retirement.
       !m.shutdown_date
-    )
-    .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+    );
+
+  // The scheduled GitHub Action publishes account-specific live probe results.
+  // Only models that returned actual text are offered when a valid report exists.
+  // If the health report has not run yet (or is temporarily unavailable), retain
+  // catalogue fallback so first-time setup remains usable.
+  try {
+    const healthResponse = await fetch('./model-health.json', { cache: 'no-store' });
+    if (healthResponse.ok) {
+      const health = await healthResponse.json() as {
+        generatedAt?: string | null;
+        models?: { id: string; status: string }[];
+      };
+      if (health.generatedAt && Array.isArray(health.models) && health.models.length > 0) {
+        const workingIds = new Set(health.models.filter(item => item.status === 'working').map(item => item.id));
+        return candidates
+          .filter(model => workingIds.has(model.id))
+          .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+      }
+    }
+  } catch {
+    // A missing health report should not block the app from loading its catalogue.
+  }
+  return candidates.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 }
 
 export async function chatCompletion(token: string, model: string, messages: {role: Role; content: string}[], onText: (s:string)=>void, signal?: AbortSignal) {
