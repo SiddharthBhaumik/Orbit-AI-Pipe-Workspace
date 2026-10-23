@@ -34,10 +34,10 @@ npm run preview
 
 ## AI Pipe endpoints
 
-Orbit uses the OpenRouter-compatible base URL `https://aipipe.org/openrouter/v1`.
+Orbit uses only the OpenAI-compatible base URL `https://aipipe.org/openai/v1`.
 
-- `GET /models` — fetches available models.
-- `POST /chat/completions` — streams a chat completion.
+- `GET /models` — fetches the OpenAI model catalogue; Orbit filters out image, audio, embedding, moderation, search, and other non-chat model IDs for this chat-focused phase.
+- `POST /chat/completions` — sends non-streaming OpenAI chat-completion requests. Model IDs are sent exactly as returned by the OpenAI catalogue; there is no OpenRouter fallback.
 - Sign-in redirect: `https://aipipe.org/login?redirect=<current-url>`
 
 The app uses the token only in browser requests to AI Pipe. It does not use a custom backend or send credentials to an Orbit server. If a request returns an authentication error, Orbit flags the token as rejected/possibly expired and asks you to reconnect; token changes made elsewhere are detected on the next API request, not by a background watcher.
