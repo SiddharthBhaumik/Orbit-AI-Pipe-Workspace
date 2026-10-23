@@ -18,3 +18,10 @@
 .history-item .history-delete:hover{background:#402326;color:#ffb6b6}
 .history-item:hover small{display:none}
 .connection-pill{white-space:nowrap}
+
+.history-item{padding:0;gap:0}
+.history-item .history-open{display:flex;align-items:center;gap:9px;min-width:0;flex:1;height:100%;padding:0 7px;border:0;background:transparent;color:inherit;text-align:left;overflow:hidden}
+.history-item .history-open span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.history-item .history-open small{font:9px 'DM Mono',monospace;color:#656975;flex-shrink:0}
+.history-item:hover .history-open small{display:block}
+.history-item .history-delete{margin-right:4px}
