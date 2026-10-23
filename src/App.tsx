@@ -5,7 +5,7 @@ import { Activity, ArrowDown, ArrowLeftRight, ArrowUp, Check, ChevronDown, Circl
 import { chatCompletion, fetchModels, startAIPipeSignIn } from './aipipe';
 import type { AuthProfile, ChatMessage, Model, Role } from './types';
 
-const KEY='orbit.auth.v1', CONV='orbit.conversations.v1', FALLBACK='openai/gpt-4o-mini';
+const KEY='orbit.auth.v1', CONV='orbit.conversations.v1', FALLBACK='gpt-4o-mini';
 const uid=()=>Math.random().toString(36).slice(2,10);
 const starter=(title='New conversation')=>({id:uid(),title,createdAt:Date.now(),messages:[] as ChatMessage[]});
 function readAuth():AuthProfile|null { try { const x=localStorage.getItem(KEY)||sessionStorage.getItem(KEY); if(!x)return null; const p=JSON.parse(x) as AuthProfile; try { localStorage.setItem(KEY,JSON.stringify(p)); sessionStorage.removeItem(KEY); } catch {} return p; } catch { return null; } }
@@ -14,7 +14,7 @@ function fmtDate(t:number) { const d=new Date(t); return d.toLocaleDateString(un
 function App() {
   const [profile,setProfile]=useState<AuthProfile|null>(readAuth);
   const [tokenDraft,setTokenDraft]=useState(''); const [showToken,setShowToken]=useState(false);
-  const [models,setModels]=useState<Model[]>([]); const [model,setModel]=useState(FALLBACK); const [compareModel,setCompareModel]=useState(FALLBACK);
+  const [models,setModels]=useState<Model[]>([]); const [model,setModel]=useState(FALLBACK); const [compareModel,setCompareModel]=useState('gpt-4.1-mini');
   const [modelSearch,setModelSearch]=useState(''); const [showModels,setShowModels]=useState(false);
   const [conversations,setConversations]=useState(readConversations); const [activeId,setActiveId]=useState(()=>readConversations()[0]?.id||''); const [tokenInvalid,setTokenInvalid]=useState(false);
   const [draft,setDraft]=useState(''); const [loading,setLoading]=useState(false); const [error,setError]=useState(''); const [notice,setNotice]=useState('');
