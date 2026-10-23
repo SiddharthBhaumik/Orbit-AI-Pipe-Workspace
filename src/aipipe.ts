@@ -1,4 +1,4 @@
-import type { Model } from './types';
+import type { Model, Role } from './types';
 export const API = 'https://aipipe.org/openrouter/v1';
 export function cleanAuthRedirect() {
   const url = new URL(window.location.href);
