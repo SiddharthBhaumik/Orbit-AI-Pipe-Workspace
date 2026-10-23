@@ -39,7 +39,7 @@ export async function chatCompletion(token: string, model: string, messages: {ro
   const isOpenAI = model.startsWith('openai/');
   const endpoint = isOpenAI ? 'https://aipipe.org/openai/v1/chat/completions' : API + '/chat/completions';
   const apiModel = isOpenAI ? model.slice('openai/'.length) : model;
-  const r = await fetch(endpoint, { method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}, body:JSON.stringify({model:apiModel,messages,stream:!isOpenAI}), signal });
+  const r = await fetch(endpoint, { method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}, body:JSON.stringify(isOpenAI ? {model:apiModel,messages,stream:false,max_tokens:1024} : {model:apiModel,messages,stream:true}), signal });
   if (!r.ok) throw new Error('AI Pipe ' + (isOpenAI ? 'OpenAI' : 'OpenRouter') + ' route: ' + await errorMessage(r));
   if (isOpenAI) {
     const data = await r.json() as { error?: { message?: string }; choices?: { message?: { content?: string | {type?:string;text?:string}[] } }[] };
