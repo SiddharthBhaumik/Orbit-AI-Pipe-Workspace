@@ -4,7 +4,7 @@ A polished, responsive multi-model chat workspace built with React, TypeScript, 
 
 ## Features
 
-- **AI Pipe sign-in** using the official redirect flow, plus manual token entry.
+- **AI Pipe sign-in** using the official `getProfile()` helper and redirect flow, plus manual token entry.
 - **Live model catalogue** loaded from the OpenRouter-compatible AI Pipe endpoint.
 - **Streaming chat** with Markdown, GitHub-flavoured Markdown, code blocks, tables, and copy response.
 - **Compare mode** to run the same prompt through two models.
@@ -40,13 +40,13 @@ Orbit uses the OpenRouter-compatible base URL `https://aipipe.org/openrouter/v1`
 - `POST /chat/completions` — streams a chat completion.
 - Sign-in redirect: `https://aipipe.org/login?redirect=<current-url>`
 
-The app uses the token only in browser requests to AI Pipe. It does not use a custom backend or send credentials to an Orbit server.
+The app uses the token only in browser requests to AI Pipe. It does not use a custom backend or send credentials to an Orbit server. If a request returns an authentication error, Orbit flags the token as rejected/possibly expired and asks you to reconnect; token changes made elsewhere are detected on the next API request, not by a background watcher.
 
 ## Token handling and security
 
-- Manually entered tokens are kept in **sessionStorage**, so they do not persist as a long-term credential across browser sessions.
-- AI Pipe's sign-in callback token is consumed on page load and removed from the visible URL with `history.replaceState`.
-- Chat history is stored in local storage. Do not use this on a shared computer if your conversations are sensitive.
+- Tokens are stored in this browser's **localStorage** so sign-in can survive browser restarts. Disconnecting removes Orbit's saved token.
+- AI Pipe's sign-in callback token is consumed on page load and removed from the visible URL with `history.replaceState`. The official helper is also asked to restore the AI Pipe profile on later visits.
+- Chat history and authentication are stored in local storage. Do not use this on a shared computer if your conversations or token are sensitive.
 - Never commit a real API token, put one in a public environment variable, or paste one into an issue or screenshot.
 - Browser-side apps cannot make a secret embedded in client code truly private. For personal use, use a token you can rotate and understand the provider's usage limits.
 
