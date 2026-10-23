@@ -33,7 +33,7 @@ export async function fetchModels(token: string): Promise<Model[]> {
   const j = await r.json() as { data?: Model[] };
   // The OpenAI catalogue also contains image, audio, embedding and other
   // non-chat models. Keep this first phase focused on text/chat-capable models.
-  const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use)/i;
+  const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use|instruct)/i;
   return (j.data || [])
     .filter(m => typeof m?.id === 'string' && /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) && !nonChat.test(m.id))
     .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
