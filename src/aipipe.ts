@@ -31,11 +31,19 @@ export async function fetchModels(token: string): Promise<Model[]> {
   const r = await fetch(API + '/models', { headers: { Authorization: 'Bearer ' + token } });
   if (!r.ok) throw new Error(await errorMessage(r));
   const j = await r.json() as { data?: Model[] };
-  // The OpenAI catalogue also contains image, audio, embedding and other
-  // non-chat models. Keep this first phase focused on text/chat-capable models.
-  const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use|instruct)/i;
+  // AI Pipe's OpenAI model list exposes shutdown_date. Exclude models with
+  // any announced shutdown, not just ones already shut down, so deprecated
+  // and soon-to-be-retired IDs never enter Orbit's chat picker.
+  const today = new Date().toISOString().slice(0, 10);
+  const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use|instruct|codex|deep-research|cyber)/i;
   return (j.data || [])
-    .filter(m => typeof m?.id === 'string' && /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) && !nonChat.test(m.id))
+    .filter(m =>
+      typeof m?.id === 'string' &&
+      /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) &&
+      !nonChat.test(m.id) &&
+      // A future shutdown date means the model has been scheduled for retirement.
+      (!m.shutdown_date || m.shutdown_date < today)
+    )
     .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 }
 
