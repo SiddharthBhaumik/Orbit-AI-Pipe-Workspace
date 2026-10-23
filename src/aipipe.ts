@@ -1,5 +1,5 @@
 import type { Model, Role } from './types';
-export const API = 'https://aipipe.org/openrouter/v1';
+export const API = 'https://aipipe.org/openai/v1';
 export function cleanAuthRedirect() {
   const url = new URL(window.location.href);
   const token = url.searchParams.get('aipipe_token');
@@ -31,51 +31,32 @@ export async function fetchModels(token: string): Promise<Model[]> {
   const r = await fetch(API + '/models', { headers: { Authorization: 'Bearer ' + token } });
   if (!r.ok) throw new Error(await errorMessage(r));
   const j = await r.json() as { data?: Model[] };
-  // AI Pipe rejects some catalog entries at request time when its pricing
-  // metadata is unknown. Hide entries without explicit, parseable token prices.
-  return (j.data || []).filter(m => {
-    if (!m || typeof m.id !== 'string' || !m.pricing) return false;
-    const input = Number(m.pricing.prompt), output = Number(m.pricing.completion);
-    return m.pricing.prompt != null && m.pricing.completion != null &&
-      String(m.pricing.prompt).trim() !== '' && String(m.pricing.completion).trim() !== '' &&
-      Number.isFinite(input) && Number.isFinite(output);
-  }).sort((a,b) => (a.name || a.id).localeCompare(b.name || b.id));
+  // The OpenAI catalogue also contains image, audio, embedding and other
+  // non-chat models. Keep this first phase focused on text/chat-capable models.
+  const nonChat = /(?:image|audio|tts|transcri(?:be|ption)|embedding|moderation|sora|whisper|realtime|search|computer-use)/i;
+  return (j.data || [])
+    .filter(m => typeof m?.id === 'string' && /^(gpt-|o1(?:-|$)|o3(?:-|$)|o4(?:-|$))/i.test(m.id) && !nonChat.test(m.id))
+    .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
 }
+
 export async function chatCompletion(token: string, model: string, messages: {role: Role; content: string}[], onText: (s:string)=>void, signal?: AbortSignal) {
-  // The user's proven working script uses AI Pipe's OpenAI-compatible route.
-  // Route OpenAI model IDs there, and keep OpenRouter for other providers.
-  const isOpenAI = model.startsWith('openai/');
-  const endpoint = isOpenAI ? 'https://aipipe.org/openai/v1/chat/completions' : API + '/chat/completions';
-  const apiModel = isOpenAI ? model.slice('openai/'.length) : model;
-  const r = await fetch(endpoint, { method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}, body:JSON.stringify(isOpenAI ? {model:apiModel,messages,stream:false,max_tokens:1024} : {model:apiModel,messages,stream:true}), signal });
-  if (!r.ok) { const detail = await errorMessage(r); if (/pricing unknown/i.test(detail)) throw new Error('AI Pipe has no usable pricing metadata for ' + model + '. This is a model/catalog issue, not proof that your usage allowance is exhausted. Choose another model with known pricing.'); throw new Error('AI Pipe ' + (isOpenAI ? 'OpenAI' : 'OpenRouter') + ' route: ' + detail); }
-  if (isOpenAI) {
-    const data = await r.json() as { error?: { message?: string }; choices?: { message?: { content?: string | {type?:string;text?:string}[] } }[] };
-    if(data.error?.message) throw new Error(data.error.message);
-    const value=data.choices?.[0]?.message?.content;
-    const full=typeof value==='string'?value:Array.isArray(value)?value.map(p=>p.text||'').join(''):'';
-    if(!full.trim()) throw new Error('The model returned an empty response.');
-    onText(full);
-    return full;
-  }
-  if (!r.body) throw new Error('This browser cannot read the response stream.');
-  const reader=r.body.getReader(), decoder=new TextDecoder(); let buffer='', full='';
-  while(true) {
-    const {value,done}=await reader.read(); if(done) break;
-    buffer += decoder.decode(value,{stream:true});
-    const lines=buffer.split('\n'); buffer=lines.pop() || '';
-    for(const raw of lines) {
-      const line=raw.trim(); if(!line.startsWith('data:')) continue;
-      const payload=line.slice(5).trim(); if(payload==='[DONE]') continue;
-      try {
-        const data=JSON.parse(payload);
-        if(data.error?.message) throw new Error(data.error.message);
-        const delta=data.choices?.[0]?.delta?.content;
-        const chunk=typeof delta==='string'?delta:Array.isArray(delta)?delta.map((p:any)=>p.text||'').join(''):'';
-        if(chunk) { full+=chunk; onText(full); }
-      } catch(e) { if(e instanceof Error && !e.message.toLowerCase().includes('json')) throw e; }
-    }
-  }
-  if(!full.trim()) throw new Error('The model returned an empty response.');
+  // Orbit is intentionally OpenAI-only: model IDs are sent unchanged to the
+  // AI Pipe OpenAI-compatible endpoint. No OpenRouter fallback is attempted.
+  const r = await fetch(API + '/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, stream: false, max_completion_tokens: 2048 }),
+    signal
+  });
+  if (!r.ok) throw new Error('AI Pipe OpenAI route: ' + await errorMessage(r));
+  const data = await r.json() as {
+    error?: { message?: string };
+    choices?: { message?: { content?: string | {type?:string;text?:string}[] } }[];
+  };
+  if (data.error?.message) throw new Error(data.error.message);
+  const value = data.choices?.[0]?.message?.content;
+  const full = typeof value === 'string' ? value : Array.isArray(value) ? value.map(p => p.text || '').join('') : '';
+  if (!full.trim()) throw new Error('The model returned an empty response. If this is a reasoning model, try a larger output budget or another model.');
+  onText(full);
   return full;
 }
