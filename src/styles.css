@@ -9,3 +9,12 @@
 .conversation-inner.compare-layout>.assistant-row .message-avatar{display:none}
 .conversation-inner.compare-layout>.assistant-row .message-meta{flex-wrap:wrap}
 @media(max-width:760px){.conversation-inner.compare-layout{grid-template-columns:minmax(0,1fr);column-gap:0}.conversation-inner.compare-layout>.user-row,.conversation-inner.compare-layout>.thinking,.conversation-inner.compare-layout>div:last-child{grid-column:1}.conversation-inner.compare-layout>.assistant-row{grid-column:1}}
+
+/* Conversation history: visible selection and per-chat delete control. */
+.history-item{position:relative;cursor:pointer;outline-offset:2px}
+.history-item:focus-visible{outline:1px solid var(--lime)}
+.history-item .history-delete{display:none;align-items:center;justify-content:center;flex:0 0 25px;width:25px;height:25px;border:0;border-radius:6px;background:transparent;color:#999daa;padding:0}
+.history-item:hover .history-delete,.history-item:focus-within .history-delete{display:inline-flex}
+.history-item .history-delete:hover{background:#402326;color:#ffb6b6}
+.history-item:hover small{display:none}
+.connection-pill{white-space:nowrap}
