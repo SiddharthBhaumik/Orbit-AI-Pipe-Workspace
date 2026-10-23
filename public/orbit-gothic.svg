@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+<defs>
+ <linearGradient id="sky" x2="0.8" y2="1"><stop stop-color="#060b19"/><stop offset=".48" stop-color="#18243c"/><stop offset="1" stop-color="#050914"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#f5d8a0" stop-opacity=".95"/><stop offset=".15" stop-color="#b4c9ff" stop-opacity=".4"/><stop offset="1" stop-color="#536ba8" stop-opacity="0"/></radialGradient>
+ <linearGradient id="gold" x2="0" y2="1"><stop stop-color="#ffebba"/><stop offset=".5" stop-color="#b58a4c"/><stop offset="1" stop-color="#473323"/></linearGradient>
+ <linearGradient id="stone" x2="0" y2="1"><stop stop-color="#263148"/><stop offset="1" stop-color="#070b14"/></linearGradient>
+ <filter id="blur"><feGaussianBlur stdDeviation="24"/></filter>
+ <pattern id="stars" width="170" height="130" patternUnits="userSpaceOnUse"><circle cx="15" cy="22" r="1.3" fill="#e7d6ae"/><circle cx="98" cy="65" r=".8" fill="#fff"/><circle cx="144" cy="12" r="1" fill="#9eb7f4"/><circle cx="65" cy="112" r="1.1" fill="#e8d4a3"/></pattern>
+</defs>
+<rect width="1600" height="1000" fill="url(#sky)"/><rect width="1600" height="1000" fill="url(#stars)"/>
+<ellipse cx="820" cy="370" rx="560" ry="450" fill="url(#glow)" filter="url(#blur)" opacity=".85"/>
+<!-- celestial orrery -->
+<g fill="none" stroke="url(#gold)" opacity=".72">
+ <circle cx="830" cy="340" r="265" stroke-width="2"/><circle cx="830" cy="340" r="300" stroke-width="1"/><circle cx="830" cy="340" r="345" stroke-width="1"/>
+ <ellipse cx="830" cy="340" rx="430" ry="125" stroke-width="3" transform="rotate(-22 830 340)"/><ellipse cx="830" cy="340" rx="410" ry="160" stroke-width="1.5" transform="rotate(36 830 340)"/>
+ <ellipse cx="830" cy="340" rx="190" ry="390" stroke-width="1.4" transform="rotate(21 830 340)"/>
+ <path d="M830 20V680M510 340H1150M605 115L1055 565M1055 115L605 565" stroke-width=".7" opacity=".6"/>
+</g>
+<g fill="url(#gold)"><circle cx="830" cy="40" r="7"/><circle cx="830" cy="640" r="6"/><circle cx="533" cy="220" r="9"/><circle cx="1124" cy="444" r="10"/><circle cx="1002" cy="93" r="7"/><circle cx="653" cy="555" r="8"/></g>
+<!-- cosmic being, deliberately mythic but original -->
+<g stroke="#d8c39b" stroke-width="2" stroke-linecap="round" fill="none" opacity=".88">
+ <path d="M830 280 Q735 205 690 130 Q680 210 740 282"/><path d="M830 280 Q925 205 970 130 Q980 210 920 282"/>
+ <path d="M790 300 Q650 260 590 185 Q615 285 755 328"/><path d="M870 300 Q1010 260 1070 185 Q1045 285 905 328"/>
+ <path d="M790 325 Q680 345 620 420 Q710 405 792 360"/><path d="M870 325 Q980 345 1040 420 Q950 405 868 360"/>
+ <path d="M800 345 Q740 420 735 500 Q795 460 815 380"/><path d="M860 345 Q920 420 925 500 Q865 460 845 380"/>
+</g>
+<circle cx="830" cy="275" r="85" fill="url(#glow)"/><circle cx="830" cy="275" r="50" fill="#0b1020" stroke="url(#gold)" stroke-width="2"/>
+<path d="M805 268 Q830 236 855 268 L849 302 Q830 321 811 302Z" fill="#b8c8e8" opacity=".78"/><circle cx="817" cy="276" r="4" fill="#fff0c9"/><circle cx="843" cy="276" r="4" fill="#fff0c9"/><path d="M815 290 Q830 300 845 290" stroke="#f1d8a2" fill="none" stroke-width="2"/>
+<circle cx="830" cy="350" r="22" fill="#f4dfad" opacity=".95"/><circle cx="830" cy="350" r="50" fill="none" stroke="#f1d7a0" stroke-width="2"/><circle cx="830" cy="350" r="75" fill="none" stroke="#f1d7a0" stroke-width="1" opacity=".7"/>
+<!-- gothic towers -->
+<g fill="url(#stone)" stroke="#a58a5c" stroke-width="1.3">
+ <path d="M0 1000V410L70 340 110 410V1000Z"/><path d="M35 410V220L70 150 105 220V410Z"/><path d="M50 250V125L70 65 90 125V250Z"/>
+ <path d="M150 1000V530L205 460 250 530V1000Z"/><path d="M180 535V380L205 315 230 380V535Z"/>
+ <path d="M1260 1000V510L1320 430 1380 510V1000Z"/><path d="M1290 515V330L1320 260 1350 330V515Z"/><path d="M1360 1000V390L1420 300 1480 390V1000Z"/><path d="M1390 395V200L1420 125 1450 200V395Z"/><path d="M1480 1000V500L1530 430 1580 500V1000Z"/>
+</g>
+<g fill="#d2b57a" opacity=".8"><path d="M62 475h16v65H62zM197 592h15v72h-15zM1312 570h16v80h-16zM1412 445h16v75h-16zM1522 570h14v65h-14z"/></g>
+<!-- bridge and reflective floor -->
+<path d="M0 825 Q400 775 800 830 T1600 810V1000H0Z" fill="#050912" opacity=".9"/><path d="M0 825 Q400 775 800 830 T1600 810" stroke="url(#gold)" fill="none" stroke-width="3"/>
+<g stroke="#b28e54" stroke-width="1" opacity=".42"><path d="M800 830L520 1000M800 830L650 1000M800 830L740 1000M800 830L880 1000M800 830L1020 1000M800 830L1190 1000"/><path d="M0 875Q800 930 1600 870M0 930Q800 985 1600 920M0 975Q800 1015 1600 970"/></g>
+<g fill="none" stroke="#e6c98b" opacity=".8"><circle cx="105" cy="795" r="55"/><circle cx="105" cy="795" r="38"/><circle cx="105" cy="795" r="20"/><path d="M105 720V870M30 795H180M55 745L155 845M155 745L55 845"/></g>
+<!-- distant spires and mist -->
+<g fill="#0a1120"><path d="M270 820V650L300 600 330 650V820Z"/><path d="M340 820V700L360 665 380 700V820Z"/><path d="M1120 820V680L1150 620 1180 680V820Z"/><path d="M1200 820V720L1220 680 1240 720V820Z"/></g>
+<rect y="0" width="1600" height="1000" fill="url(#sky)" opacity=".1"/>
+</svg>
