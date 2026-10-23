@@ -52,8 +52,10 @@ function App() {
     } finally {setLoading(false);aborts.current=[];}
   }
   async function sendComparison() {
-    const text=draft.trim(); if(!text||loading||!profile?.token)return;
+    const text=draft.trim(); if(!text||loading)return;
+    if(!profile?.token){setError('Connect an AI Pipe token to start chatting.');setShowSettings(true);return;}
     let chat=active;if(!chat){chat=starter(text.slice(0,42));setConversations(v=>[chat!,...v]);setActiveId(chat.id);}
+    else if(!chat.messages.length)setConversations(v=>v.map(c=>c.id===chat!.id?{...c,title:text.slice(0,42)}:c));
     const chatId=chat.id,user:ChatMessage={id:uid(),role:'user',content:text,createdAt:Date.now()};
     const a:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:model};
     const b:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:compareModel};
