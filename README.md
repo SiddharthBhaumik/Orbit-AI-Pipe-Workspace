@@ -69,3 +69,17 @@ React · TypeScript · Vite · CSS · lucide-react · react-markdown · remark-g
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+
+## OpenAI model health checks
+
+The `.github/workflows/model-health.yml` workflow can be run manually from **Actions → Check OpenAI model availability → Run workflow** and runs weekly on a schedule. It calls the AI Pipe OpenAI-compatible `/models` endpoint, sends a small chat-completion probe to each eligible non-retired chat model, and writes the sanitized per-model results to `public/model-health.json`. Orbit reads that report and shows models whose probe returned text.
+
+Before running it, add an Actions repository secret named `AI_PIPE_TOKEN` containing your AI Pipe token:
+
+1. Open **Settings → Secrets and variables → Actions** in the repository.
+2. Choose **New repository secret**.
+3. Set the name to `AI_PIPE_TOKEN` and paste the token as its value.
+4. Open **Actions → Check OpenAI model availability → Run workflow** to run the first test.
+
+The token is only passed to the workflow as an environment secret; it is never written into the generated catalogue. The probe uses your token/account, so results reflect access through that account and may consume a small amount of usage for each model. A successful probe confirms a short text response worked at test time; it does not guarantee long-context, tool, image, or other capabilities. The workflow records non-working outcomes and updates the published model-health file, then dispatches the Pages deployment when that file changes.
