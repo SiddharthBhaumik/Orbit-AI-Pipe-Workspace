@@ -31,7 +31,15 @@ export async function fetchModels(token: string): Promise<Model[]> {
   const r = await fetch(API + '/models', { headers: { Authorization: 'Bearer ' + token } });
   if (!r.ok) throw new Error(await errorMessage(r));
   const j = await r.json() as { data?: Model[] };
-  return (j.data || []).filter(m => m && typeof m.id === 'string').sort((a,b) => (a.name || a.id).localeCompare(b.name || b.id));
+  // AI Pipe rejects some catalog entries at request time when its pricing
+  // metadata is unknown. Hide entries without explicit, parseable token prices.
+  return (j.data || []).filter(m => {
+    if (!m || typeof m.id !== 'string' || !m.pricing) return false;
+    const input = Number(m.pricing.prompt), output = Number(m.pricing.completion);
+    return m.pricing.prompt != null && m.pricing.completion != null &&
+      String(m.pricing.prompt).trim() !== '' && String(m.pricing.completion).trim() !== '' &&
+      Number.isFinite(input) && Number.isFinite(output);
+  }).sort((a,b) => (a.name || a.id).localeCompare(b.name || b.id));
 }
 export async function chatCompletion(token: string, model: string, messages: {role: Role; content: string}[], onText: (s:string)=>void, signal?: AbortSignal) {
   // The user's proven working script uses AI Pipe's OpenAI-compatible route.
@@ -40,7 +48,7 @@ export async function chatCompletion(token: string, model: string, messages: {ro
   const endpoint = isOpenAI ? 'https://aipipe.org/openai/v1/chat/completions' : API + '/chat/completions';
   const apiModel = isOpenAI ? model.slice('openai/'.length) : model;
   const r = await fetch(endpoint, { method:'POST', headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}, body:JSON.stringify(isOpenAI ? {model:apiModel,messages,stream:false,max_tokens:1024} : {model:apiModel,messages,stream:true}), signal });
-  if (!r.ok) throw new Error('AI Pipe ' + (isOpenAI ? 'OpenAI' : 'OpenRouter') + ' route: ' + await errorMessage(r));
+  if (!r.ok) { const detail = await errorMessage(r); if (/pricing unknown/i.test(detail)) throw new Error('AI Pipe has no usable pricing metadata for ' + model + '. This is a model/catalog issue, not proof that your usage allowance is exhausted. Choose another model with known pricing.'); throw new Error('AI Pipe ' + (isOpenAI ? 'OpenAI' : 'OpenRouter') + ' route: ' + detail); }
   if (isOpenAI) {
     const data = await r.json() as { error?: { message?: string }; choices?: { message?: { content?: string | {type?:string;text?:string}[] } }[] };
     if(data.error?.message) throw new Error(data.error.message);
