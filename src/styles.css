@@ -335,3 +335,6 @@
 .app-shell.theme-dawn .prompt-card{background:linear-gradient(145deg,#101b2bf2,#09111ef0);border-color:#d8bd8b9c}
 .app-shell.theme-dawn .composer{background:#08111ef5}
 .app-shell.theme-dawn .message-body{background:#091321f2}
+
+/* Celestial Dawn is retired; keep the remaining three palettes available. */
+.theme-swatch-dawn{display:none!important}
