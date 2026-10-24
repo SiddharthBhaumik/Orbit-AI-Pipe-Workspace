@@ -35,6 +35,31 @@ function App() {
   function newChat() { const c=starter(); setConversations(v=>[c,...v]);setActiveId(c.id);setDraft('');setError(''); }
   function deleteChat(id:string) { const remaining=conversations.filter(c=>c.id!==id); setConversations(remaining); if(activeId===id)setActiveId(remaining[0]?.id||''); setError(''); }
   function updateMessages(id:string,fn:(m:ChatMessage[])=>ChatMessage[]) { setConversations(v=>v.map(c=>c.id===id?{...c,messages:fn(c.messages)}:c)); }
+  // Compact older turns into a persistent summary while keeping recent messages verbatim.
+  // The full transcript remains in localStorage so older details can be retrieved later.
+  async function buildContext(chat:ReturnType<typeof starter>, modelId:string, token:string, text:string) {
+    let summary=chat.contextSummary||'';
+    let summarizedThrough=chat.summarizedThrough||0;
+    const cutoff=Math.max(0,chat.messages.length-12);
+    if(cutoff-summarizedThrough>=24) {
+      const older=chat.messages.slice(summarizedThrough,cutoff);
+      const summaryPrompt=[
+        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Prefer concise structured notes. Include the previous summary and integrate the new messages without losing still-relevant information.'},
+        ...(summary?[{role:'user' as Role,content:'Previous summary:\\n'+summary}]:[]),
+        {role:'user' as Role,content:'New conversation messages to incorporate:\\n'+older.map(m=>m.role.toUpperCase()+': '+m.content).join('\\n\\n')+'\\n\\nReturn the updated summary only.'}
+      ];
+      const compacted=await chatCompletion(token,modelId,summaryPrompt,()=>{});
+      summary=compacted;
+      summarizedThrough=cutoff;
+      setConversations(v=>v.map(c=>c.id===chat.id?{...c,contextSummary:summary,summarizedThrough}:c));
+    }
+    return [
+      {role:'system' as Role,content:systemPrompt},
+      ...(summary?[{role:'system' as Role,content:'Summary of earlier conversation (use as context, not as a replacement for the current request):\\n'+summary}]:[]),
+      ...chat.messages.slice(summarizedThrough).map(m=>({role:m.role as Role,content:m.content})),
+      {role:'user' as Role,content:text}
+    ];
+  }
   async function send(e?:React.FormEvent) {
     e?.preventDefault(); const text=draft.trim(); if(!text||loading)return;
     if(!profile?.token){setError('Connect an AI Pipe token to start chatting.');setShowSettings(true);return;}
@@ -45,9 +70,8 @@ function App() {
     const assistant:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:model};
     updateMessages(chatId,m=>[...m,user,assistant]); setDraft('');setLoading(true);setError('');
     const controller=new AbortController();aborts.current=[controller];
-    const prior=chat.messages.map(m=>({role:m.role as Role,content:m.content}));
-    const msgs=[{role:'system' as Role,content:systemPrompt},...prior,{role:'user' as Role,content:text}];
     try {
+      const msgs=await buildContext(chat,model,profile.token,text);
       await chatCompletion(profile.token,model,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===assistant.id?{...x,content}:x)),controller.signal);
     } catch(e) {
       if(!(e instanceof DOMException&&e.name==='AbortError')) { const message=e instanceof Error?e.message:'Something went wrong'; setError(message); if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true); }
@@ -63,12 +87,14 @@ function App() {
     const a:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:model};
     const b:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:compareModel};
     updateMessages(chatId,m=>[...m,user,a,b]);setDraft('');setLoading(true);setError('');
-    const msgs=[{role:'system' as Role,content:systemPrompt},...chat.messages.map(m=>({role:m.role as Role,content:m.content})),{role:'user' as Role,content:text}];
     const ctrls=[new AbortController(),new AbortController()];aborts.current=ctrls;
-    await Promise.allSettled([[model,a,ctrls[0]],[compareModel,b,ctrls[1]]].map(async([mid,msg,ctrl])=>{
-      await chatCompletion(profile.token,mid as string,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===(msg as ChatMessage).id?{...x,content}:x)),(ctrl as AbortController).signal);
-    })).then(results=>{const bad=results.find(r=>r.status==='rejected') as PromiseRejectedResult|undefined;if(bad){const message=bad.reason instanceof Error?bad.reason.message:'One model failed';setError(message);if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true);}});
-    setLoading(false);aborts.current=[];
+    try {
+      const msgs=await buildContext(chat,model,profile.token,text);
+      await Promise.allSettled([[model,a,ctrls[0]],[compareModel,b,ctrls[1]]].map(async([mid,msg,ctrl])=>{
+        await chatCompletion(profile.token,mid as string,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===(msg as ChatMessage).id?{...x,content}:x)),(ctrl as AbortController).signal);
+      })).then(results=>{const bad=results.find(r=>r.status==='rejected') as PromiseRejectedResult|undefined;if(bad){const message=bad.reason instanceof Error?bad.reason.message:'One model failed';setError(message);if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true);}});
+    } catch(e) { setError(e instanceof Error?e.message:'Could not prepare conversation context'); }
+    finally {setLoading(false);aborts.current=[];}
   }
   const filtered=useMemo(()=>models.filter(m=>(m.name||m.id).toLowerCase().includes(modelSearch.toLowerCase())||m.id.toLowerCase().includes(modelSearch.toLowerCase())),[models,modelSearch]);
   function chooseModel(id:string,second=false){second?setCompareModel(id):setModel(id);setShowModels(null);setModelSearch('');}
