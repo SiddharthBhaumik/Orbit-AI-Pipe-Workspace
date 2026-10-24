@@ -57,10 +57,13 @@ function App() {
     const cutoff=recentContextStart(chat.messages);
     if(cutoff-summarizedThrough>=24) {
       const older=chat.messages.slice(summarizedThrough,cutoff);
+      // Bound summary input independently of the recent-context budget. Very
+      // long pasted code/logs must not turn compaction into another oversized call.
+      const olderText=older.map(m=>m.role.toUpperCase()+': '+m.content.slice(0,2200)).join('\n\n').slice(-18000);
       const summaryPrompt=[
-        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Integrate the previous summary with the new messages, retaining still-relevant details. Return only the updated summary.'},
-        ...(summary?[{role:'user' as Role,content:'Previous summary:\n'+summary}]:[]),
-        {role:'user' as Role,content:'New conversation messages to incorporate:\n'+older.map(m=>m.role.toUpperCase()+': '+m.content).join('\n\n')}
+        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Integrate the previous summary with the new messages, retaining still-relevant details. Clearly note when source content was truncated. Keep the summary concise and useful for future turns. Return only the updated summary.'},
+        ...(summary?[{role:'user' as Role,content:'Previous summary:\n'+summary.slice(0,7000)}]:[]),
+        {role:'user' as Role,content:'New conversation messages to incorporate (oldest messages may be truncated to stay within the context budget):\n'+olderText}
       ];
       try {
         const compacted=await chatCompletion(token,modelId,summaryPrompt,()=>{});
@@ -77,7 +80,12 @@ function App() {
 
     const recentStart=Math.max(summarizedThrough,recentContextStart(chat.messages));
     const archive=chat.messages.slice(0,recentStart).filter(m=>m.content.trim());
-    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[])));
+    const stopwords=new Set(['the','and','for','that','this','with','from','you','your','are','was','were','what','when','where','why','how','can','could','would','should','have','has','had','not','but','about','into','then','than','their','them','they','our','out','use','using','please','help','tell','show','make','give','does','did','will','its','all','any','also','just','like','need','want']);
+    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[]).filter(term=>!stopwords.has(term))));
+    const phrase=text.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\\s+/g,' ').trim();
+    const relevant=archive.map((message,index)=>{
+      const content=message.content.toLowerCase();
+      const hits=terms.reduce((sum,term)=>sum+(new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[])));
     const relevant=archive.map((message,index)=>{
       const content=message.content.toLowerCase();
       const score=terms.reduce((sum,term)=>sum+(content.includes(term)?1:0),0);
@@ -86,7 +94,15 @@ function App() {
       .sort((a,b)=>b.score-a.score||b.index-a.index)
       .slice(0,3)
       .sort((a,b)=>a.index-b.index)
-      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context):\n'+message.content.slice(0,1400)}));
+      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context):\n'+message.content.slice(0,1400)}));')+'([^a-z0-9]|$)').test(content)?1:0),0);
+      const phraseBonus=phrase.length>=8&&content.includes(phrase)?5:0;
+      const recencyBonus=archive.length?index/archive.length:0;
+      return {message,index,score:hits+phraseBonus+recencyBonus};
+    }).filter(item=>item.score>0)
+      .sort((a,b)=>b.score-a.score||b.index-a.index)
+      .slice(0,3)
+      .sort((a,b)=>a.index-b.index)
+      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context; excerpt may be truncated):\\n'+message.content.slice(0,1100)}));
 
     return [
       {role:'system' as Role,content:systemPrompt},
