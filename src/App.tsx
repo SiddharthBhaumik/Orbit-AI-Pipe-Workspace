@@ -10,6 +10,18 @@ const uid=()=>Math.random().toString(36).slice(2,10);
 const starter=(title='New conversation'):Conversation=>({id:uid(),title,createdAt:Date.now(),messages:[]});
 function readAuth():AuthProfile|null { try { const x=localStorage.getItem(KEY)||sessionStorage.getItem(KEY); if(!x)return null; const p=JSON.parse(x) as AuthProfile; try { localStorage.setItem(KEY,JSON.stringify(p)); sessionStorage.removeItem(KEY); } catch {} return p; } catch { return null; } }
 function readConversations() { try { return JSON.parse(localStorage.getItem(CONV)||'[]') as ReturnType<typeof starter>[]; } catch { return []; } }
+// Approximate context budget: keep at most 24 recent messages and 24k characters
+// (roughly 6k tokens for typical prose), stopping earlier for unusually long turns.
+function recentContextStart(messages:ChatMessage[]) {
+  let chars=0, start=messages.length;
+  for(let i=messages.length-1, count=0;i>=0&&count<24;i--,count++) {
+    const next=messages[i].content.length;
+    if(count>0&&chars+next>24000) break;
+    chars+=next;
+    start=i;
+  }
+  return start;
+}
 function fmtDate(t:number) { const d=new Date(t); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 function App() {
   const [profile,setProfile]=useState<AuthProfile|null>(readAuth);
@@ -41,7 +53,7 @@ function App() {
   async function buildContext(chat:Conversation, modelId:string, token:string, text:string) {
     let summary=chat.contextSummary||'';
     let summarizedThrough=chat.summarizedThrough||0;
-    const cutoff=Math.max(0,chat.messages.length-12);
+    const cutoff=recentContextStart(chat.messages);
     if(cutoff-summarizedThrough>=24) {
       const older=chat.messages.slice(summarizedThrough,cutoff);
       const summaryPrompt=[
@@ -62,7 +74,7 @@ function App() {
       }
     }
 
-    const recentStart=Math.max(summarizedThrough,Math.max(0,chat.messages.length-12));
+    const recentStart=Math.max(summarizedThrough,recentContextStart(chat.messages));
     const archive=chat.messages.slice(0,recentStart).filter(m=>m.content.trim());
     const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[])));
     const relevant=archive.map((message,index)=>{
