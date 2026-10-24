@@ -3,11 +3,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Activity, ArrowDown, ArrowLeftRight, ArrowUp, Check, ChevronDown, CircleHelp, Command, Copy, Cpu, ExternalLink, Eye, EyeOff, FileText, Github, History, KeyRound, LogOut, Menu, MessageSquare, Orbit, PanelLeftClose, Palette, Plus, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, SquarePen, StopCircle, Trash2, X, Zap } from 'lucide-react';
 import { chatCompletion, fetchModels } from './aipipe';
-import type { AuthProfile, ChatMessage, Model, Role } from './types';
+import type { AuthProfile, ChatMessage, Conversation, Model, Role } from './types';
 
 const KEY='orbit.auth.v1', CONV='orbit.conversations.v1', FALLBACK='gpt-4o-mini';
 const uid=()=>Math.random().toString(36).slice(2,10);
-const starter=(title='New conversation')=>({id:uid(),title,createdAt:Date.now(),messages:[] as ChatMessage[]});
+const starter=(title='New conversation'):Conversation=>({id:uid(),title,createdAt:Date.now(),messages:[]});
 function readAuth():AuthProfile|null { try { const x=localStorage.getItem(KEY)||sessionStorage.getItem(KEY); if(!x)return null; const p=JSON.parse(x) as AuthProfile; try { localStorage.setItem(KEY,JSON.stringify(p)); sessionStorage.removeItem(KEY); } catch {} return p; } catch { return null; } }
 function readConversations() { try { return JSON.parse(localStorage.getItem(CONV)||'[]') as ReturnType<typeof starter>[]; } catch { return []; } }
 function fmtDate(t:number) { const d=new Date(t); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
