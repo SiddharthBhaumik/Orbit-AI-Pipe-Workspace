@@ -3,13 +3,25 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Activity, ArrowDown, ArrowLeftRight, ArrowUp, Check, ChevronDown, CircleHelp, Command, Copy, Cpu, ExternalLink, Eye, EyeOff, FileText, Github, History, KeyRound, LogOut, Menu, MessageSquare, Orbit, PanelLeftClose, Palette, Plus, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, SquarePen, StopCircle, Trash2, X, Zap } from 'lucide-react';
 import { chatCompletion, fetchModels } from './aipipe';
-import type { AuthProfile, ChatMessage, Model, Role } from './types';
+import type { AuthProfile, ChatMessage, Conversation, Model, Role } from './types';
 
 const KEY='orbit.auth.v1', CONV='orbit.conversations.v1', FALLBACK='gpt-4o-mini';
 const uid=()=>Math.random().toString(36).slice(2,10);
-const starter=(title='New conversation')=>({id:uid(),title,createdAt:Date.now(),messages:[] as ChatMessage[]});
+const starter=(title='New conversation'):Conversation=>({id:uid(),title,createdAt:Date.now(),messages:[]});
 function readAuth():AuthProfile|null { try { const x=localStorage.getItem(KEY)||sessionStorage.getItem(KEY); if(!x)return null; const p=JSON.parse(x) as AuthProfile; try { localStorage.setItem(KEY,JSON.stringify(p)); sessionStorage.removeItem(KEY); } catch {} return p; } catch { return null; } }
 function readConversations() { try { return JSON.parse(localStorage.getItem(CONV)||'[]') as ReturnType<typeof starter>[]; } catch { return []; } }
+// Approximate context budget: keep at most 24 recent messages and 24k characters
+// (roughly 6k tokens for typical prose), stopping earlier for unusually long turns.
+function recentContextStart(messages:ChatMessage[]) {
+  let chars=0, start=messages.length;
+  for(let i=messages.length-1, count=0;i>=0&&count<24;i--,count++) {
+    const next=messages[i].content.length;
+    if(count>0&&chars+next>24000) break;
+    chars+=next;
+    start=i;
+  }
+  return start;
+}
 function fmtDate(t:number) { const d=new Date(t); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
 function App() {
   const [profile,setProfile]=useState<AuthProfile|null>(readAuth);
@@ -19,6 +31,7 @@ function App() {
   const [conversations,setConversations]=useState(readConversations); const [activeId,setActiveId]=useState(()=>readConversations()[0]?.id||''); const [tokenInvalid,setTokenInvalid]=useState(false);
   const [draft,setDraft]=useState(''); const [loading,setLoading]=useState(false); const [error,setError]=useState(''); const [notice,setNotice]=useState('');
   const [compare,setCompare]=useState(false); const [sidebar,setSidebar]=useState(true); const [showSettings,setShowSettings]=useState(false);
+  const [showContextDetails,setShowContextDetails]=useState(false);
   const [theme,setTheme]=useState(()=>{try{const saved=localStorage.getItem('orbit.theme.v1')||'astral';return saved==='dawn'?'astral':saved;}catch{return 'astral';}}); const [showThemes,setShowThemes]=useState(false);
   const themes=[{id:'astral',name:'Astral Indigo',desc:'Midnight · nebula · violet',swatch:'theme-swatch-astral'},{id:'gothic',name:'Gothic Observatory',desc:'Slate · silver · antique gold',swatch:'theme-swatch-gothic'},{id:'infernal',name:'Infernal Eclipse',desc:'Obsidian · crimson · ember',swatch:'theme-swatch-infernal'}];
   useEffect(()=>{try{localStorage.setItem('orbit.theme.v1',theme);}catch{}},[theme]);
@@ -35,6 +48,61 @@ function App() {
   function newChat() { const c=starter(); setConversations(v=>[c,...v]);setActiveId(c.id);setDraft('');setError(''); }
   function deleteChat(id:string) { const remaining=conversations.filter(c=>c.id!==id); setConversations(remaining); if(activeId===id)setActiveId(remaining[0]?.id||''); setError(''); }
   function updateMessages(id:string,fn:(m:ChatMessage[])=>ChatMessage[]) { setConversations(v=>v.map(c=>c.id===id?{...c,messages:fn(c.messages)}:c)); }
+  // Keep recent turns verbatim, summarize older turns, and retrieve exact older
+  // messages when their wording overlaps the current question. The full archive
+  // remains in localStorage; retrieval only sends a few small excerpts to the model.
+  async function buildContext(chat:Conversation, modelId:string, token:string, text:string) {
+    let summary=chat.contextSummary||'';
+    let summarizedThrough=chat.summarizedThrough||0;
+    const cutoff=recentContextStart(chat.messages);
+    if(cutoff-summarizedThrough>=24) {
+      const older=chat.messages.slice(summarizedThrough,cutoff);
+      // Bound summary input independently of the recent-context budget. Very
+      // long pasted code/logs must not turn compaction into another oversized call.
+      const olderText=older.map(m=>m.role.toUpperCase()+': '+m.content.slice(0,2200)).join('\n\n').slice(-18000);
+      const summaryPrompt=[
+        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Integrate the previous summary with the new messages, retaining still-relevant details. Clearly note when source content was truncated. Keep the summary concise and useful for future turns. Return only the updated summary.'},
+        ...(summary?[{role:'user' as Role,content:'Previous summary:\n'+summary.slice(0,7000)}]:[]),
+        {role:'user' as Role,content:'New conversation messages to incorporate (oldest messages may be truncated to stay within the context budget):\n'+olderText}
+      ];
+      try {
+        const compacted=await chatCompletion(token,modelId,summaryPrompt,()=>{});
+        if(compacted.trim()) {
+          summary=compacted.trim();
+          summarizedThrough=cutoff;
+          setConversations(v=>v.map(c=>c.id===chat.id?{...c,contextSummary:summary,summarizedThrough}:c));
+        }
+      } catch {
+        // A failed compaction should not prevent the user's actual chat request.
+        setNotice('Context summary could not refresh; continuing with recent messages');
+      }
+    }
+
+    const recentStart=Math.max(summarizedThrough,recentContextStart(chat.messages));
+    const archive=chat.messages.slice(0,recentStart).filter(m=>m.content.trim());
+    const stopwords=new Set(['the','and','for','that','this','with','from','you','your','are','was','were','what','when','where','why','how','can','could','would','should','have','has','had','not','but','about','into','then','than','their','them','they','our','out','use','using','please','help','tell','show','make','give','does','did','will','its','all','any','also','just','like','need','want']);
+    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[]).filter(term=>!stopwords.has(term))));
+    const phrase=text.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    const relevant=archive.map((message,index)=>{
+      const content=message.content.toLowerCase();
+      const hits=terms.reduce((sum,term)=>sum+(content.includes(term)?1:0),0);
+      const phraseBonus=phrase.length>=8&&content.includes(phrase)?5:0;
+      const recencyBonus=archive.length?index/archive.length:0;
+      return {message,index,score:hits+phraseBonus+recencyBonus};
+    }).filter(item=>item.score>0)
+      .sort((a,b)=>b.score-a.score||b.index-a.index)
+      .slice(0,3)
+      .sort((a,b)=>a.index-b.index)
+      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context; excerpt may be truncated):\\n'+message.content.slice(0,1100)}));
+
+    return [
+      {role:'system' as Role,content:systemPrompt},
+      ...(summary?[{role:'system' as Role,content:'Summary of earlier conversation (use as context, not as a replacement for the current request):\n'+summary}]:[]),
+      ...(relevant.length?[{role:'system' as Role,content:'The following excerpts were retrieved from the older conversation archive because they may be relevant. Treat them as historical context and prioritize the current request if they conflict.'},...relevant]:[]),
+      ...chat.messages.slice(recentStart).map(m=>({role:m.role as Role,content:m.content})),
+      {role:'user' as Role,content:text}
+    ];
+  }
   async function send(e?:React.FormEvent) {
     e?.preventDefault(); const text=draft.trim(); if(!text||loading)return;
     if(!profile?.token){setError('Connect an AI Pipe token to start chatting.');setShowSettings(true);return;}
@@ -45,9 +113,8 @@ function App() {
     const assistant:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:model};
     updateMessages(chatId,m=>[...m,user,assistant]); setDraft('');setLoading(true);setError('');
     const controller=new AbortController();aborts.current=[controller];
-    const prior=chat.messages.map(m=>({role:m.role as Role,content:m.content}));
-    const msgs=[{role:'system' as Role,content:systemPrompt},...prior,{role:'user' as Role,content:text}];
     try {
+      const msgs=await buildContext(chat,model,profile.token,text);
       await chatCompletion(profile.token,model,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===assistant.id?{...x,content}:x)),controller.signal);
     } catch(e) {
       if(!(e instanceof DOMException&&e.name==='AbortError')) { const message=e instanceof Error?e.message:'Something went wrong'; setError(message); if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true); }
@@ -63,12 +130,14 @@ function App() {
     const a:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:model};
     const b:ChatMessage={id:uid(),role:'assistant',content:'',createdAt:Date.now(),modelId:compareModel};
     updateMessages(chatId,m=>[...m,user,a,b]);setDraft('');setLoading(true);setError('');
-    const msgs=[{role:'system' as Role,content:systemPrompt},...chat.messages.map(m=>({role:m.role as Role,content:m.content})),{role:'user' as Role,content:text}];
     const ctrls=[new AbortController(),new AbortController()];aborts.current=ctrls;
-    await Promise.allSettled([[model,a,ctrls[0]],[compareModel,b,ctrls[1]]].map(async([mid,msg,ctrl])=>{
-      await chatCompletion(profile.token,mid as string,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===(msg as ChatMessage).id?{...x,content}:x)),(ctrl as AbortController).signal);
-    })).then(results=>{const bad=results.find(r=>r.status==='rejected') as PromiseRejectedResult|undefined;if(bad){const message=bad.reason instanceof Error?bad.reason.message:'One model failed';setError(message);if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true);}});
-    setLoading(false);aborts.current=[];
+    try {
+      const msgs=await buildContext(chat,model,profile.token,text);
+      await Promise.allSettled([[model,a,ctrls[0]],[compareModel,b,ctrls[1]]].map(async([mid,msg,ctrl])=>{
+        await chatCompletion(profile.token,mid as string,msgs,content=>updateMessages(chatId,m=>m.map(x=>x.id===(msg as ChatMessage).id?{...x,content}:x)),(ctrl as AbortController).signal);
+      })).then(results=>{const bad=results.find(r=>r.status==='rejected') as PromiseRejectedResult|undefined;if(bad){const message=bad.reason instanceof Error?bad.reason.message:'One model failed';setError(message);if(/401|403|authentication rejected|check your ai pipe token|unauthorized|invalid token/i.test(message))setTokenInvalid(true);}});
+    } catch(e) { setError(e instanceof Error?e.message:'Could not prepare conversation context'); }
+    finally {setLoading(false);aborts.current=[];}
   }
   const filtered=useMemo(()=>models.filter(m=>(m.name||m.id).toLowerCase().includes(modelSearch.toLowerCase())||m.id.toLowerCase().includes(modelSearch.toLowerCase())),[models,modelSearch]);
   function chooseModel(id:string,second=false){second?setCompareModel(id):setModel(id);setShowModels(null);setModelSearch('');}
@@ -89,7 +158,7 @@ function App() {
         <div className="prompt-grid">{[{icon:<Zap size={17}/>,title:'Explain a concept',desc:'Learn step by step',prompt:'Explain a difficult concept step by step, with an intuitive example.'},{icon:<FileText size={17}/>,title:'Help me debug code',desc:'Find and fix a bug',prompt:'Help me debug this code. Explain the cause and show a corrected version.'},{icon:<Activity size={17}/>,title:'Analyze this data',desc:'Find patterns and insights',prompt:'Help me analyze this data and identify useful patterns and insights.'},{icon:<ArrowLeftRight size={17}/>,title:'Compare AI models',desc:'Compare answers and trade-offs',prompt:'Compare two approaches to solving a problem, including trade-offs and when to use each.'}].map((p,i)=><button key={i} className="prompt-card" onClick={()=>{setDraft(p.prompt);if(i===3)setCompare(true);}}><span className="prompt-icon">{p.icon}</span><b>{p.title}</b><small>{p.desc}</small><ArrowUp size={14} className="prompt-arrow"/></button>)}</div>
         <div className="welcome-foot"><ShieldCheck size={15}/> Your token is saved in this browser. Requests go directly to AI Pipe.</div>
       </div>:<div className="conversation-scroll scrollbar-thin"><div className={"conversation-inner "+(compare?"compare-layout":"")}>{active.messages.map(m=><div className={'message-row '+(m.role==='user'?'user-row':'assistant-row')} key={m.id}><div className={'message-avatar '+(m.role==='assistant'?'ai':'human')}>{m.role==='assistant'?<Sparkles size={16}/>:<span>Y</span>}</div><div className="message-body"><div className="message-meta"><b>{m.role==='user'?'You':(models.find(x=>x.id===m.modelId)?.name||m.modelId||'Orbit')}</b><span>{new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>{m.modelId&&<span className="model-chip">{m.modelId}</span>}</div><div className="markdown">{m.role==='assistant'?<ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content||'…'}</ReactMarkdown>:<p>{m.content}</p>}</div>{m.role==='assistant'&&m.content&&<div className="message-actions"><button onClick={()=>copy(m.content)}><Copy size={13}/> Copy</button></div>}</div></div>)}{loading&&<div className="thinking"><span/><span/><span/> <small>Thinking</small></div>}<div ref={bottom}/></div></div>}
-      <div className="composer-area"><div className="composer-model-row"><div className="composer-models"><ModelPicker/><button className={'compare-toggle '+(compare?'on':'')} onClick={()=>setCompare(!compare)} type="button"><ArrowLeftRight size={15}/> Compare <span className="toggle-dot"/></button>{compare&&<ModelPicker second/>}</div><button className="refresh-models" type="button" onClick={()=>profile&&refreshModels()} title="Refresh model list"><RefreshCw size={14}/><span>{models.length?models.length+' models':'Models'}</span></button></div><form className="composer" onSubmit={compare?e=>{e.preventDefault();void sendComparison();}:send}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();compare?void sendComparison():void send();}}} placeholder={profile?'Ask anything…':'Connect AI Pipe to start chatting'} rows={Math.min(5,Math.max(1,draft.split('\n').length))}/><div className="composer-bottom"><div className="composer-hints"><span><Command size={12}/> Enter to send</span><span>·</span><span>Shift + Enter for new line</span></div><div className="composer-buttons"><button type="button" className="icon-btn" title="Clear prompt" onClick={()=>setDraft('')}><X size={15}/></button>{loading?<button type="button" className="send-btn stop" onClick={()=>aborts.current.forEach(c=>c.abort())}><StopCircle size={16}/> Stop</button>:<button className="send-btn" type="submit" disabled={!draft.trim()}><ArrowUp size={17}/></button>}</div></div></form><div className="composer-disclaimer">AI can make mistakes. Verify important information. <a href="https://aipipe.org" target="_blank" rel="noreferrer">Powered by AI Pipe <ExternalLink size={10}/></a></div></div>
+      <div className="composer-area">{active?.contextSummary&&<div className="context-status-wrap"><button type="button" className="context-status" onClick={()=>setShowContextDetails(v=>!v)} aria-expanded={showContextDetails}><span><History size={13}/> Long-chat context active</span><small>{showContextDetails?"Hide saved summary":"View saved summary"} · older turns summarized</small><ChevronDown size={13} className={showContextDetails?"context-chevron open":"context-chevron"}/></button>{showContextDetails&&<div className="context-details"><b>Saved conversation summary</b><p>{active.contextSummary}</p><small>Full conversation transcript remains in your browser history.</small></div>}</div>}<div className="composer-model-row"><div className="composer-models"><ModelPicker/><button className={'compare-toggle '+(compare?'on':'')} onClick={()=>setCompare(!compare)} type="button"><ArrowLeftRight size={15}/> Compare <span className="toggle-dot"/></button>{compare&&<ModelPicker second/>}</div><button className="refresh-models" type="button" onClick={()=>profile&&refreshModels()} title="Refresh model list"><RefreshCw size={14}/><span>{models.length?models.length+' models':'Models'}</span></button></div><form className="composer" onSubmit={compare?e=>{e.preventDefault();void sendComparison();}:send}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();compare?void sendComparison():void send();}}} placeholder={profile?'Ask anything…':'Connect AI Pipe to start chatting'} rows={Math.min(5,Math.max(1,draft.split('\n').length))}/><div className="composer-bottom"><div className="composer-hints"><span><Command size={12}/> Enter to send</span><span>·</span><span>Shift + Enter for new line</span></div><div className="composer-buttons"><button type="button" className="icon-btn" title="Clear prompt" onClick={()=>setDraft('')}><X size={15}/></button>{loading?<button type="button" className="send-btn stop" onClick={()=>aborts.current.forEach(c=>c.abort())}><StopCircle size={16}/> Stop</button>:<button className="send-btn" type="submit" disabled={!draft.trim()}><ArrowUp size={17}/></button>}</div></div></form><div className="composer-disclaimer">AI can make mistakes. Verify important information. <a href="https://aipipe.org" target="_blank" rel="noreferrer">Powered by AI Pipe <ExternalLink size={10}/></a></div></div>
     </main>
     {showSettings&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSettings(false);}}><section className="settings-modal"><div className="modal-head"><div><span className="modal-eyebrow">PREFERENCES</span><h2>Workspace settings</h2><p>Connect your account and tune how Orbit responds.</p></div><button className="icon-btn" onClick={()=>setShowSettings(false)}><X size={18}/></button></div>
       <div className="settings-section"><h3><KeyRound size={16}/> Connect AI Pipe</h3><p className="settings-copy">1. Open https://aipipe.org/login<br/>2. Sign in and create an API token.<br/>3. Copy the token and paste it below.</p><label className="field-label" htmlFor="token">AI Pipe token</label><div className="token-input"><input id="token" type={showToken?'text':'password'} autoComplete="off" value={tokenDraft} onChange={e=>setTokenDraft(e.target.value)} placeholder="Paste your AI Pipe token"/><button type="button" className="icon-btn" onClick={()=>setShowToken(!showToken)}>{showToken?<EyeOff size={15}/>:<Eye size={15}/>}</button></div><button className="primary-wide" disabled={!tokenDraft.trim()} onClick={()=>connect(tokenDraft.trim())}>Connect token</button>{profile&&<div className="connected-box"><span className="status-check">{tokenInvalid?<CircleHelp size={14}/>:<Check size={14}/>}</span><div><b>{tokenInvalid?'Token needs renewal':'Connected with token'}</b><small>{tokenInvalid?'Paste a fresh token below.':profile.email||'Token saved in this browser'}</small></div><button onClick={disconnect}><LogOut size={14}/> Disconnect</button></div>}</div>
