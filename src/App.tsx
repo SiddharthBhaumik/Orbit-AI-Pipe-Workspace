@@ -35,28 +35,51 @@ function App() {
   function newChat() { const c=starter(); setConversations(v=>[c,...v]);setActiveId(c.id);setDraft('');setError(''); }
   function deleteChat(id:string) { const remaining=conversations.filter(c=>c.id!==id); setConversations(remaining); if(activeId===id)setActiveId(remaining[0]?.id||''); setError(''); }
   function updateMessages(id:string,fn:(m:ChatMessage[])=>ChatMessage[]) { setConversations(v=>v.map(c=>c.id===id?{...c,messages:fn(c.messages)}:c)); }
-  // Compact older turns into a persistent summary while keeping recent messages verbatim.
-  // The full transcript remains in localStorage so older details can be retrieved later.
-  async function buildContext(chat:ReturnType<typeof starter>, modelId:string, token:string, text:string) {
+  // Keep recent turns verbatim, summarize older turns, and retrieve exact older
+  // messages when their wording overlaps the current question. The full archive
+  // remains in localStorage; retrieval only sends a few small excerpts to the model.
+  async function buildContext(chat:Conversation, modelId:string, token:string, text:string) {
     let summary=chat.contextSummary||'';
     let summarizedThrough=chat.summarizedThrough||0;
     const cutoff=Math.max(0,chat.messages.length-12);
     if(cutoff-summarizedThrough>=24) {
       const older=chat.messages.slice(summarizedThrough,cutoff);
       const summaryPrompt=[
-        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Prefer concise structured notes. Include the previous summary and integrate the new messages without losing still-relevant information.'},
-        ...(summary?[{role:'user' as Role,content:'Previous summary:\\n'+summary}]:[]),
-        {role:'user' as Role,content:'New conversation messages to incorporate:\\n'+older.map(m=>m.role.toUpperCase()+': '+m.content).join('\\n\\n')+'\\n\\nReturn the updated summary only.'}
+        {role:'system' as Role,content:'Create a compact, factual continuation summary for an ongoing conversation. Preserve user goals, preferences, decisions, constraints, definitions, unresolved questions, important numbers, and code/API details. Do not invent facts. Integrate the previous summary with the new messages, retaining still-relevant details. Return only the updated summary.'},
+        ...(summary?[{role:'user' as Role,content:'Previous summary:\n'+summary}]:[]),
+        {role:'user' as Role,content:'New conversation messages to incorporate:\n'+older.map(m=>m.role.toUpperCase()+': '+m.content).join('\n\n')}
       ];
-      const compacted=await chatCompletion(token,modelId,summaryPrompt,()=>{});
-      summary=compacted;
-      summarizedThrough=cutoff;
-      setConversations(v=>v.map(c=>c.id===chat.id?{...c,contextSummary:summary,summarizedThrough}:c));
+      try {
+        const compacted=await chatCompletion(token,modelId,summaryPrompt,()=>{});
+        if(compacted.trim()) {
+          summary=compacted.trim();
+          summarizedThrough=cutoff;
+          setConversations(v=>v.map(c=>c.id===chat.id?{...c,contextSummary:summary,summarizedThrough}:c));
+        }
+      } catch {
+        // A failed compaction should not prevent the user's actual chat request.
+        setNotice('Context summary could not refresh; continuing with recent messages');
+      }
     }
+
+    const recentStart=Math.max(summarizedThrough,Math.max(0,chat.messages.length-12));
+    const archive=chat.messages.slice(0,recentStart).filter(m=>m.content.trim());
+    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[])));
+    const relevant=archive.map((message,index)=>{
+      const content=message.content.toLowerCase();
+      const score=terms.reduce((sum,term)=>sum+(content.includes(term)?1:0),0);
+      return {message,index,score};
+    }).filter(item=>item.score>0)
+      .sort((a,b)=>b.score-a.score||b.index-a.index)
+      .slice(0,3)
+      .sort((a,b)=>a.index-b.index)
+      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context):\n'+message.content.slice(0,1400)}));
+
     return [
       {role:'system' as Role,content:systemPrompt},
-      ...(summary?[{role:'system' as Role,content:'Summary of earlier conversation (use as context, not as a replacement for the current request):\\n'+summary}]:[]),
-      ...chat.messages.slice(summarizedThrough).map(m=>({role:m.role as Role,content:m.content})),
+      ...(summary?[{role:'system' as Role,content:'Summary of earlier conversation (use as context, not as a replacement for the current request):\n'+summary}]:[]),
+      ...(relevant.length?[{role:'system' as Role,content:'The following excerpts were retrieved from the older conversation archive because they may be relevant. Treat them as historical context and prioritize the current request if they conflict.'},...relevant]:[]),
+      ...chat.messages.slice(recentStart).map(m=>({role:m.role as Role,content:m.content})),
       {role:'user' as Role,content:text}
     ];
   }
@@ -115,7 +138,7 @@ function App() {
         <div className="prompt-grid">{[{icon:<Zap size={17}/>,title:'Explain a concept',desc:'Learn step by step',prompt:'Explain a difficult concept step by step, with an intuitive example.'},{icon:<FileText size={17}/>,title:'Help me debug code',desc:'Find and fix a bug',prompt:'Help me debug this code. Explain the cause and show a corrected version.'},{icon:<Activity size={17}/>,title:'Analyze this data',desc:'Find patterns and insights',prompt:'Help me analyze this data and identify useful patterns and insights.'},{icon:<ArrowLeftRight size={17}/>,title:'Compare AI models',desc:'Compare answers and trade-offs',prompt:'Compare two approaches to solving a problem, including trade-offs and when to use each.'}].map((p,i)=><button key={i} className="prompt-card" onClick={()=>{setDraft(p.prompt);if(i===3)setCompare(true);}}><span className="prompt-icon">{p.icon}</span><b>{p.title}</b><small>{p.desc}</small><ArrowUp size={14} className="prompt-arrow"/></button>)}</div>
         <div className="welcome-foot"><ShieldCheck size={15}/> Your token is saved in this browser. Requests go directly to AI Pipe.</div>
       </div>:<div className="conversation-scroll scrollbar-thin"><div className={"conversation-inner "+(compare?"compare-layout":"")}>{active.messages.map(m=><div className={'message-row '+(m.role==='user'?'user-row':'assistant-row')} key={m.id}><div className={'message-avatar '+(m.role==='assistant'?'ai':'human')}>{m.role==='assistant'?<Sparkles size={16}/>:<span>Y</span>}</div><div className="message-body"><div className="message-meta"><b>{m.role==='user'?'You':(models.find(x=>x.id===m.modelId)?.name||m.modelId||'Orbit')}</b><span>{new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>{m.modelId&&<span className="model-chip">{m.modelId}</span>}</div><div className="markdown">{m.role==='assistant'?<ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content||'…'}</ReactMarkdown>:<p>{m.content}</p>}</div>{m.role==='assistant'&&m.content&&<div className="message-actions"><button onClick={()=>copy(m.content)}><Copy size={13}/> Copy</button></div>}</div></div>)}{loading&&<div className="thinking"><span/><span/><span/> <small>Thinking</small></div>}<div ref={bottom}/></div></div>}
-      <div className="composer-area"><div className="composer-model-row"><div className="composer-models"><ModelPicker/><button className={'compare-toggle '+(compare?'on':'')} onClick={()=>setCompare(!compare)} type="button"><ArrowLeftRight size={15}/> Compare <span className="toggle-dot"/></button>{compare&&<ModelPicker second/>}</div><button className="refresh-models" type="button" onClick={()=>profile&&refreshModels()} title="Refresh model list"><RefreshCw size={14}/><span>{models.length?models.length+' models':'Models'}</span></button></div><form className="composer" onSubmit={compare?e=>{e.preventDefault();void sendComparison();}:send}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();compare?void sendComparison():void send();}}} placeholder={profile?'Ask anything…':'Connect AI Pipe to start chatting'} rows={Math.min(5,Math.max(1,draft.split('\n').length))}/><div className="composer-bottom"><div className="composer-hints"><span><Command size={12}/> Enter to send</span><span>·</span><span>Shift + Enter for new line</span></div><div className="composer-buttons"><button type="button" className="icon-btn" title="Clear prompt" onClick={()=>setDraft('')}><X size={15}/></button>{loading?<button type="button" className="send-btn stop" onClick={()=>aborts.current.forEach(c=>c.abort())}><StopCircle size={16}/> Stop</button>:<button className="send-btn" type="submit" disabled={!draft.trim()}><ArrowUp size={17}/></button>}</div></div></form><div className="composer-disclaimer">AI can make mistakes. Verify important information. <a href="https://aipipe.org" target="_blank" rel="noreferrer">Powered by AI Pipe <ExternalLink size={10}/></a></div></div>
+      <div className="composer-area">{active?.contextSummary&&<div className="context-status"><span><History size={13}/> Long-chat context active</span><small>Older turns summarized · relevant archive excerpts retrieved as needed</small></div>}<div className="composer-model-row"><div className="composer-models"><ModelPicker/><button className={'compare-toggle '+(compare?'on':'')} onClick={()=>setCompare(!compare)} type="button"><ArrowLeftRight size={15}/> Compare <span className="toggle-dot"/></button>{compare&&<ModelPicker second/>}</div><button className="refresh-models" type="button" onClick={()=>profile&&refreshModels()} title="Refresh model list"><RefreshCw size={14}/><span>{models.length?models.length+' models':'Models'}</span></button></div><form className="composer" onSubmit={compare?e=>{e.preventDefault();void sendComparison();}:send}><textarea value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();compare?void sendComparison():void send();}}} placeholder={profile?'Ask anything…':'Connect AI Pipe to start chatting'} rows={Math.min(5,Math.max(1,draft.split('\n').length))}/><div className="composer-bottom"><div className="composer-hints"><span><Command size={12}/> Enter to send</span><span>·</span><span>Shift + Enter for new line</span></div><div className="composer-buttons"><button type="button" className="icon-btn" title="Clear prompt" onClick={()=>setDraft('')}><X size={15}/></button>{loading?<button type="button" className="send-btn stop" onClick={()=>aborts.current.forEach(c=>c.abort())}><StopCircle size={16}/> Stop</button>:<button className="send-btn" type="submit" disabled={!draft.trim()}><ArrowUp size={17}/></button>}</div></div></form><div className="composer-disclaimer">AI can make mistakes. Verify important information. <a href="https://aipipe.org" target="_blank" rel="noreferrer">Powered by AI Pipe <ExternalLink size={10}/></a></div></div>
     </main>
     {showSettings&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSettings(false);}}><section className="settings-modal"><div className="modal-head"><div><span className="modal-eyebrow">PREFERENCES</span><h2>Workspace settings</h2><p>Connect your account and tune how Orbit responds.</p></div><button className="icon-btn" onClick={()=>setShowSettings(false)}><X size={18}/></button></div>
       <div className="settings-section"><h3><KeyRound size={16}/> Connect AI Pipe</h3><p className="settings-copy">1. Open https://aipipe.org/login<br/>2. Sign in and create an API token.<br/>3. Copy the token and paste it below.</p><label className="field-label" htmlFor="token">AI Pipe token</label><div className="token-input"><input id="token" type={showToken?'text':'password'} autoComplete="off" value={tokenDraft} onChange={e=>setTokenDraft(e.target.value)} placeholder="Paste your AI Pipe token"/><button type="button" className="icon-btn" onClick={()=>setShowToken(!showToken)}>{showToken?<EyeOff size={15}/>:<Eye size={15}/>}</button></div><button className="primary-wide" disabled={!tokenDraft.trim()} onClick={()=>connect(tokenDraft.trim())}>Connect token</button>{profile&&<div className="connected-box"><span className="status-check">{tokenInvalid?<CircleHelp size={14}/>:<Check size={14}/>}</span><div><b>{tokenInvalid?'Token needs renewal':'Connected with token'}</b><small>{tokenInvalid?'Paste a fresh token below.':profile.email||'Token saved in this browser'}</small></div><button onClick={disconnect}><LogOut size={14}/> Disconnect</button></div>}</div>
