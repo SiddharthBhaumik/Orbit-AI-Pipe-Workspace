@@ -82,19 +82,10 @@ function App() {
     const archive=chat.messages.slice(0,recentStart).filter(m=>m.content.trim());
     const stopwords=new Set(['the','and','for','that','this','with','from','you','your','are','was','were','what','when','where','why','how','can','could','would','should','have','has','had','not','but','about','into','then','than','their','them','they','our','out','use','using','please','help','tell','show','make','give','does','did','will','its','all','any','also','just','like','need','want']);
     const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[]).filter(term=>!stopwords.has(term))));
-    const phrase=text.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\\s+/g,' ').trim();
+    const phrase=text.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
     const relevant=archive.map((message,index)=>{
       const content=message.content.toLowerCase();
-      const hits=terms.reduce((sum,term)=>sum+(new RegExp('(^|[^a-z0-9])'+term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\    const terms=Array.from(new Set((text.toLowerCase().match(/[a-z0-9_+#.-]{3,}/g)||[])));
-    const relevant=archive.map((message,index)=>{
-      const content=message.content.toLowerCase();
-      const score=terms.reduce((sum,term)=>sum+(content.includes(term)?1:0),0);
-      return {message,index,score};
-    }).filter(item=>item.score>0)
-      .sort((a,b)=>b.score-a.score||b.index-a.index)
-      .slice(0,3)
-      .sort((a,b)=>a.index-b.index)
-      .map(({message})=>({role:'system' as Role,content:'Relevant archived '+message.role+' message (historical context):\n'+message.content.slice(0,1400)}));')+'([^a-z0-9]|$)').test(content)?1:0),0);
+      const hits=terms.reduce((sum,term)=>sum+(content.includes(term)?1:0),0);
       const phraseBonus=phrase.length>=8&&content.includes(phrase)?5:0;
       const recencyBonus=archive.length?index/archive.length:0;
       return {message,index,score:hits+phraseBonus+recencyBonus};
